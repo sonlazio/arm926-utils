@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 A simple test suite for the ARM Versatile Platform Basebord,
 based on ARM926EJ-S processor.
 
@@ -13,3 +14,9 @@ http://www.apache.org/licenses/LICENSE-2.0
 for more details.
 
 The author of the application is Jernej Kovacic.
+=======
+arm926-utils
+============
+
+A collection of drivers and test routines for ARM926EJ-S
+>>>>>>> c263e148e9d5cb61f97031579443ae6f04cc7625

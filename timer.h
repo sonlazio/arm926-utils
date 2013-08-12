@@ -34,6 +34,8 @@ void startTimer(unsigned nr);
 
 void stopTimer(unsigned nr);
 
+int isTimerEnabled(unsigned nr);
+
 void enableTimerInterrupt(unsigned nr);
 
 void disableTimerInterrupt(unsigned nr);
@@ -45,8 +47,6 @@ void setTimerLoad(unsigned nr, unsigned long value);
 unsigned long getTimerValue(unsigned nr);
 
 const unsigned long* getTimerValueAddr(unsigned nr);
-
-unsigned long getTimerCtrl(unsigned nr);
 
 int getTimerIRQ(unsigned nr);
 

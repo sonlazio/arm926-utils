@@ -87,7 +87,8 @@ typedef struct _ARM926EJS_TIMER_REGS
 /*
  * Pointers to each timer register's base addresses:
  */
-static volatile ARM926EJS_TIMER_REGS* const timerReg[N_TIMERS] = { 
+static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] = 
+                            { 
                                (ARM926EJS_TIMER_REGS*) (TIMER0_BASE),
                                (ARM926EJS_TIMER_REGS*) (TIMER1_BASE),
                                (ARM926EJS_TIMER_REGS*) (TIMER2_BASE),
@@ -195,6 +196,35 @@ void stopTimer(unsigned nr)
     
     /* Set bit 7 of the Control Register to 0, do not modify other bits */
     pReg->CTL &= ~CTL_ENABLE;
+}
+
+
+/**
+ * Checks whether the specified timer is enabled, i.e. running.
+ * 
+ * If it is enabled, a nonzero value, typically 1, is returned,
+ * otherwise a zero value is returned.
+ * 
+ * If 'nr' is invalid, a zero is returned (as an invalid timer cannot be enabled).
+ * 
+ * @param nr - number of the timer (between 0 and 3)
+ * 
+ * @return a zero value if the timer is disabled, a nonzero if it is enabled
+ */ 
+int isTimerEnabled(unsigned nr)
+{
+    volatile ARM926EJS_TIMER_REGS* pReg;
+
+    /* sanity check: */
+    if ( nr>N_TIMERS )
+    {
+        return 0;
+    }
+    
+    pReg = timerReg[nr];
+    
+    /* just check the enable bit of the timer's Control Register */
+    return ( 0==(pReg->CTL & CTL_ENABLE) ? 0 : 1 );
 }
 
 
@@ -355,34 +385,6 @@ const unsigned long* getTimerValueAddr(unsigned nr)
     pReg = timerReg[nr];
     
     return (const unsigned long*) &(pReg->VAL);
-}
-
-
-/**
- * Returns contents of the specified timer's Control Register.
- * 
- * This is just a copy of the register, so modifying it
- * will not affect the timer.
- * 
- * Zero is returned if 'nr' is invalid (4 or greater).
- *
- * @param nr - number of the timer (between 0 and 3)
- * 
- * @return copy of the timer's Control Register
- */
-unsigned long getTimerCtrl(unsigned nr)
-{
-    volatile ARM926EJS_TIMER_REGS* pReg;
-
-    /* sanity check: */
-    if ( nr>N_TIMERS )
-    {
-        return 0UL;
-    }
-    
-    pReg = timerReg[nr];
-    
-    return pReg->CTL;
 }
 
 

@@ -145,8 +145,6 @@ void timersEnabled(void)
     /* For each available timer... */
     for ( i=0; i<4; ++i )
     {
-        /* ... get a copy of its Control Register */
-        unsigned long ctl = getTimerCtrl(i);
 
         /* Print the timer's number */
         print("Timer ");
@@ -156,8 +154,8 @@ void timersEnabled(void)
         strbuf[3] = '\0';
         print(strbuf);
 
-        /* finally check its enable bit and display the information */
-        pstr = (0!=ctl&0x00000080 ? "enabled" : "disabled");
+        /* then call the appropriate timer function */
+        pstr = (0!=isTimerEnabled(i) ? "enabled" : "disabled");
         print(pstr);
         print("\r\n");
     }
@@ -232,7 +230,13 @@ void start(void)
     const unsigned long million = 0x000F4240;
     
     unsignedLongSize();
+    
+    /* Enable the 2nd timer */
+    startTimer(1);
     timersEnabled();
+    /* and disable it after the test */
+    stopTimer(1);
+    
     timerTicks(2, 10, million);
     
     print("* * * T E S T   C O M P L E T E * * *\r\n");

@@ -184,7 +184,7 @@ void timerTicks(unsigned timerNr, unsigned nrTicks, unsigned long value)
     }
 
     /* Prepare and start the timer: */    
-    setupTimer(timerNr);
+    initTimer(timerNr);
     setTimerLoad(timerNr, value);
     startTimer(timerNr);
     

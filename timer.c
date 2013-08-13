@@ -69,35 +69,35 @@ limitations under the License.
 
 
 /*
- * 32-bit Registers of individual timer controllers,
- * relative to the controller's base address:
+ * 32-bit registers of individual timer controllers,
+ * relative to the controllers' base address:
  * See page 3-2 of DDI0271:
  */
 typedef struct _ARM926EJS_TIMER_REGS 
 {
-	unsigned long LOD;    /* Load Register, TimerXLoad */
-	unsigned long VAL;    /* Current Value Register, TimerXValue */
-	unsigned long CTL;    /* Control Register, TimerXControl */
-	unsigned long CLI;    /* InterruptClear Register, TimerXIntClr */
-	unsigned long RIS;    /* Raw Interrupt Status Register, TimerXRIS */
-	unsigned long MIS;    /* Masked interrupt Status Register, TimerXMIS */
-	unsigned long RLD;    /* Background Load Register, TimerXBGLoad */
+	unsigned long LOD;        /* Load Register, TimerXLoad */
+	const unsigned long VAL;  /* Current Value Register, TimerXValue, read only */
+	unsigned long CTL;        /* Control Register, TimerXControl */
+	unsigned long CLI;        /* InterruptClear Register, TimerXIntClr */
+	const unsigned long RIS;  /* Raw Interrupt Status Register, TimerXRIS, read only */
+	const unsigned long MIS;  /* Masked Interrupt Status Register, TimerXMIS, read only */
+	unsigned long RLD;        /* Background Load Register, TimerXBGLoad */
 } ARM926EJS_TIMER_REGS;
 
 /*
  * Pointers to each timer register's base addresses:
  */
 static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] = 
-                            { 
+                          { 
                                (ARM926EJS_TIMER_REGS*) (TIMER0_BASE),
                                (ARM926EJS_TIMER_REGS*) (TIMER1_BASE),
                                (ARM926EJS_TIMER_REGS*) (TIMER2_BASE),
                                (ARM926EJS_TIMER_REGS*) (TIMER3_BASE)
-                             };
+                          };
 
 
 /**
- * Set up the specified timer controller.
+ * Initializes the specified timer controller.
  * The following parameters are set:
  * - periodic mode (when the counter reaches 0, it is wrapped to the value of the Load Register)
  * - 32-bit counter length
@@ -109,7 +109,7 @@ static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] =
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void setupTimer(unsigned nr)
+void initTimer(unsigned nr)
 {
     volatile ARM926EJS_TIMER_REGS* pReg;
     
@@ -122,7 +122,7 @@ void setupTimer(unsigned nr)
     pReg = timerReg[nr];
     
     /*
-     * DDI0271 does not recommend modifyng reserved bits of the Control Register (see page 3-5).
+     * DDI0271 does not recommend modifying reserved bits of the Control Register (see page 3-5).
      * For that reason, the register is set in two steps:
      * - the appropriate bit masks of 1-bits are bitwise or'ed to the CTL
      * - zero complements of the appropriate bit masks of 0-bits are bitwise and'ed to the CTL
@@ -138,7 +138,7 @@ void setupTimer(unsigned nr)
     pReg->CTL |= ( CTL_MODE | CTL_CTRLEN );
     
     /*
-     * The following bits are set to 0:
+     * The following bits are will be to 0:
      * - enable bit (disabled, i.e. timer not running)
      * - interrupt bit (disabled)
      * - prescale bits (00 = 1)
@@ -296,7 +296,7 @@ void clearTimerInterrupt(unsigned nr)
     pReg = timerReg[nr];
     
     /*
-     * Writing anything ( e.g. 0xFFFFFFFF, i.e. all ones )into the 
+     * Writing anything (e.g. 0xFFFFFFFF, i.e. all ones) into the 
      * Interrupt Clear Register (CLI) clears the timer's interrupt output.
      * See page 3-6 of DDI0271.
      */

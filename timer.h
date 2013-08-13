@@ -28,7 +28,7 @@ limitations under the License.
 #ifndef _TIMER_H_
 #define _TIMER_H_
 
-void setupTimer(unsigned nr);
+void initTimer(unsigned nr);
 
 void startTimer(unsigned nr);
 

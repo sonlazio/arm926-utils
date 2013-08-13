@@ -31,10 +31,44 @@ limitations under the License.
 
 #include <stdlib.h>
 
-/* Base address of the UART0 register (see page 4-68 of the DUI0225D): */
+/* Base addresses of UART registers (see page 4-68 of the DUI0225D): */
 #define UART0_BASE      0x101F1000
+#define UART1_BASE      0x101F2000
+#define UART2_BASE      0x101F3000 
 
-static volatile char* const uart0 = (char*) (UART0_BASE);
+
+/*
+ * 32-bit Registers of individual UART controllers,
+ * relative to the controller's base address:
+ * See page 3-3 of DDI0183.
+ * 
+ * Note: all registers are 32-bit words, however all registers only use the least
+ * significant 16 bits (or even less). DDI0183 does not explicitly mention, how
+ * the remaining bits should be handled, therefore they will be treated as
+ * "should not be modified".
+ */
+typedef struct _ARM926EJS_UART_REGS
+{
+    unsigned long DAT;          /* UART Data Register, UARTDR */
+    unsigned long RSR;          /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
+    const unsigned long Reserved1[4];  /* reserved, should not be modified */
+    const unsigned long FLR;    /* Flag Register, UARTFR, read only */
+    const unsigned long Reserved2;  /* reserved, should not be modified */
+    unsigned long ILC;          /* IrDA Low-Power Counter Register, UARTILPR */
+    unsigned long IBR;          /* Integer Baud Rate Register, UARTIBRD */
+    unsigned long FBR;          /* Fractional Baud Rate Register, UARTFBRD */
+    unsigned long LCR;          /* Line Control Register, UARTLC_H */
+    unsigned long CTR;          /* Control Register, UARTCR */
+    unsigned long IFR;          /* Interrupt FIFO Level Select Register, UARTIFLS */
+    unsigned long IMR;          /* Interrupt Mask Set/Clear Register, UARTIMSC */
+    const unsigned long RIS;    /* Raw Interrupt Status Register, UARTRIS, read only */
+    const unsigned long MIS;    /* Mask Interrupt Status Register, UARTMIS, read only */
+    unsigned long ICR;          /* Interrupt Clear Register */
+    unsigned long DCR;          /* DMA Control Register, UARTDMACR */
+} ARM926EJS_UART_REGS;
+
+
+static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_BASE);
 
 /*
  * Outputs a character to the UART0. This short function is used by other functions,
@@ -49,10 +83,21 @@ inline void __printCh(char ch)
     * Qemu ignores other UART's registers and to send a character, it is sufficient
     * to simply write its value to the UART's base address.
     * 
-    * The future implementations should also handle other registers, even
-    * qemu ignores them.
+    * The future implementations should also handle other registers, even though
+    * Qemu ignores them.
     */
-    *uart0 = ch;
+   
+   /*
+    * The Data Register is a 32-bit word, however only the least significant 8 bits
+    * can be assigned the character to be sent, while other bits represent various flags
+    * and should not be set to 0. For that reason, the following trick is introduced:
+    * 
+    * Casting the Data Register's address to char* effectively turns the word into an array
+    * of (four) 8-bit characters. Now, dereferencing the first character of this array affects
+    * only the desired character itself, not the whole word.  
+    */
+   
+    *( (char*) &(pReg->DAT) ) = ch;
 }
 
 /**

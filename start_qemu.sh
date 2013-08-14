@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Run an instance of "qemu-system-arm", emulating an ARM Versatile Application Baseboard with
-# ARM926ES-J. Qemu is run in the "nographics mode", i.e. its display will not open and the
+# ARM926EJ-S. Qemu is run in the "nographics mode", i.e. its display will not open and the
 # board's UART0 serial port will be "connected" directly to the running shell's standard output
 # and/or input.
 #

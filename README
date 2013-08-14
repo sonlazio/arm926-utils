@@ -1,7 +1,7 @@
-A simple test suite for the ARM Versatile Platform Basebord,
-based on ARM926EJ-S processor.
+A simple test suite for the ARM Versatile Platform Baseboard,
+based on processor ARM926EJ-S.
 
-The test application can also be run inside Qemu.
+The test application can also be run in Qemu.
 For more details about required settings of Qemu and a toolchain to build
 the application, see comments inside shell script (*.sh) files.
 

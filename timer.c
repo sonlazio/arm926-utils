@@ -60,12 +60,13 @@ limitations under the License.
  *   0: one shot enable bit (0: wrapping, 1: one shot)
  */
 
-#define CTL_ENABLE      0x00000080
-#define CTL_MODE        0x00000040
-#define CTL_INTR        0x00000020
-#define CTL_PRESCALE    0x0000000C
-#define CTL_CTRLEN      0x00000002
-#define CTL_ONESHOT     0x00000001
+#define CTL_ENABLE          0x00000080
+#define CTL_MODE            0x00000040
+#define CTL_INTR            0x00000020
+#define CTL_PRESCALE_1      0x00000008
+#define CTL_PRESCALE_2      0x00000004
+#define CTL_CTRLEN          0x00000002
+#define CTL_ONESHOT         0x00000001
 
 
 /*
@@ -75,13 +76,13 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_TIMER_REGS 
 {
-	unsigned long LOD;        /* Load Register, TimerXLoad */
-	const unsigned long VAL;  /* Current Value Register, TimerXValue, read only */
-	unsigned long CTL;        /* Control Register, TimerXControl */
-	unsigned long CLI;        /* InterruptClear Register, TimerXIntClr */
-	const unsigned long RIS;  /* Raw Interrupt Status Register, TimerXRIS, read only */
-	const unsigned long MIS;  /* Masked Interrupt Status Register, TimerXMIS, read only */
-	unsigned long RLD;        /* Background Load Register, TimerXBGLoad */
+	unsigned long LOAD;           /* Load Register, TimerXLoad */
+	const unsigned long VALUE;    /* Current Value Register, TimerXValue, read only */
+	unsigned long CONTROL;        /* Control Register, TimerXControl */
+	unsigned long INTCLR;         /* Interrupt Clear Register, TimerXIntClr */
+	const unsigned long RIS;      /* Raw Interrupt Status Register, TimerXRIS, read only */
+	const unsigned long MIS;      /* Masked Interrupt Status Register, TimerXMIS, read only */
+	unsigned long BGLOAD;         /* Background Load Register, TimerXBGLoad */
 } ARM926EJS_TIMER_REGS;
 
 /*
@@ -111,15 +112,13 @@ static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] =
  */
 void initTimer(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
-    
+
     /* sanity check: */
     if ( nr>N_TIMERS )
     {
         return;
     }
     
-    pReg = timerReg[nr];
     
     /*
      * DDI0271 does not recommend modifying reserved bits of the Control Register (see page 3-5).
@@ -135,17 +134,17 @@ void initTimer(unsigned nr)
      * - counter length (32-bit) 
      */
     
-    pReg->CTL |= ( CTL_MODE | CTL_CTRLEN );
+    timerReg[nr]->CONTROL |= ( CTL_MODE | CTL_CTRLEN );
     
     /*
      * The following bits are will be to 0:
      * - enable bit (disabled, i.e. timer not running)
      * - interrupt bit (disabled)
-     * - prescale bits (00 = 1)
+     * - both prescale bits (00 = 1)
      * - oneshot bit (wrapping mode)
      */
     
-    pReg->CTL &= ( ~CTL_ENABLE & ~CTL_INTR & ~CTL_PRESCALE & ~CTL_ONESHOT );
+    timerReg[nr]->CONTROL &= ( ~CTL_ENABLE & ~CTL_INTR & ~CTL_PRESCALE_1 & ~CTL_PRESCALE_2 & ~CTL_ONESHOT );
     
     /* reserved bits remained unmodifed */
 }
@@ -160,18 +159,15 @@ void initTimer(unsigned nr)
  */
 void startTimer(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
- 
+
     /* sanity check: */
     if ( nr>N_TIMERS )
     {
         return;
     }
-    
-    pReg = timerReg[nr];
 
     /* Set bit 7 of the Control Register to 1, do not modify other bits */
-    pReg->CTL |= CTL_ENABLE;
+    timerReg[nr]->CONTROL |= CTL_ENABLE;
 }
 
 
@@ -184,7 +180,6 @@ void startTimer(unsigned nr)
  */
 void stopTimer(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
 
     /* sanity check: */
     if ( nr>N_TIMERS )
@@ -192,10 +187,8 @@ void stopTimer(unsigned nr)
         return;
     }
     
-    pReg = timerReg[nr];
-    
     /* Set bit 7 of the Control Register to 0, do not modify other bits */
-    pReg->CTL &= ~CTL_ENABLE;
+    timerReg[nr]->CONTROL &= ~CTL_ENABLE;
 }
 
 
@@ -213,7 +206,6 @@ void stopTimer(unsigned nr)
  */ 
 int isTimerEnabled(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
 
     /* sanity check: */
     if ( nr>N_TIMERS )
@@ -221,10 +213,8 @@ int isTimerEnabled(unsigned nr)
         return 0;
     }
     
-    pReg = timerReg[nr];
-    
     /* just check the enable bit of the timer's Control Register */
-    return ( 0==(pReg->CTL & CTL_ENABLE) ? 0 : 1 );
+    return ( 0==(timerReg[nr]->CONTROL & CTL_ENABLE) ? 0 : 1 );
 }
 
 
@@ -237,7 +227,6 @@ int isTimerEnabled(unsigned nr)
  */
 void enableTimerInterrupt(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
  
     /* sanity check: */
     if ( nr>N_TIMERS )
@@ -245,10 +234,8 @@ void enableTimerInterrupt(unsigned nr)
         return;
     }
     
-    pReg = timerReg[nr];
-    
     /* Set bit 5 of the Control Register to 1, do not modify other bits */
-    pReg->CTL |= CTL_INTR;
+    timerReg[nr]->CONTROL |= CTL_INTR;
 }
 
 
@@ -261,18 +248,15 @@ void enableTimerInterrupt(unsigned nr)
  */
 void disableTimerInterrupt(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
- 
+
     /* sanity check: */
     if ( nr>N_TIMERS )
     {
         return;
     }
     
-    pReg = timerReg[nr];
-    
     /* Set bit 5 of the Control Register to 0, do not modify other bits */
-    pReg->CTL &= ~CTL_INTR;
+    timerReg[nr]->CONTROL &= ~CTL_INTR;
 }
 
 
@@ -285,7 +269,6 @@ void disableTimerInterrupt(unsigned nr)
  */
 void clearTimerInterrupt(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
 
     /* sanity check: */
     if ( nr>N_TIMERS )
@@ -293,14 +276,12 @@ void clearTimerInterrupt(unsigned nr)
         return;
     }
     
-    pReg = timerReg[nr];
-    
     /*
      * Writing anything (e.g. 0xFFFFFFFF, i.e. all ones) into the 
-     * Interrupt Clear Register (CLI) clears the timer's interrupt output.
+     * Interrupt Clear Register clears the timer's interrupt output.
      * See page 3-6 of DDI0271.
      */
-    pReg->CLI = 0xFFFFFFFF;
+    timerReg[nr]->INTCLR = 0xFFFFFFFF;
 }
 
 
@@ -319,7 +300,6 @@ void clearTimerInterrupt(unsigned nr)
  */
 void setTimerLoad(unsigned nr, unsigned long value)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
 
     /* sanity check: */
     if ( nr>N_TIMERS )
@@ -327,9 +307,7 @@ void setTimerLoad(unsigned nr, unsigned long value)
         return;
     }
     
-    pReg = timerReg[nr];
-    
-    pReg->LOD = value;
+    timerReg[nr]->LOAD = value;
 }
 
 
@@ -345,7 +323,6 @@ void setTimerLoad(unsigned nr, unsigned long value)
  */
 unsigned long getTimerValue(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
 
     /* sanity check: */
     if ( nr>N_TIMERS )
@@ -353,9 +330,7 @@ unsigned long getTimerValue(unsigned nr)
         return 0UL;
     }
     
-    pReg = timerReg[nr];
-    
-    return pReg->VAL;
+    return timerReg[nr]->VALUE;
 }
 
 
@@ -374,17 +349,14 @@ unsigned long getTimerValue(unsigned nr)
  */ 
 const unsigned long* getTimerValueAddr(unsigned nr)
 {
-    volatile ARM926EJS_TIMER_REGS* pReg;
-    
+
     /* sanity check: */
     if ( nr>N_TIMERS )
     {
         return NULL;
     }
     
-    pReg = timerReg[nr];
-    
-    return (const unsigned long*) &(pReg->VAL);
+    return (const unsigned long*) &(timerReg[nr]->VALUE);
 }
 
 

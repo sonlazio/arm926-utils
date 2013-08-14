@@ -49,24 +49,26 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_UART_REGS
 {
-    unsigned long DAT;          /* UART Data Register, UARTDR */
-    unsigned long RSR;          /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
+    unsigned long UARTDR;           /* UART Data Register, UARTDR */
+    unsigned long UARTRSR;          /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
     const unsigned long Reserved1[4];  /* reserved, should not be modified */
-    const unsigned long FLR;    /* Flag Register, UARTFR, read only */
+    const unsigned long UARTFR;     /* Flag Register, UARTFR, read only */
     const unsigned long Reserved2;  /* reserved, should not be modified */
-    unsigned long ILC;          /* IrDA Low-Power Counter Register, UARTILPR */
-    unsigned long IBR;          /* Integer Baud Rate Register, UARTIBRD */
-    unsigned long FBR;          /* Fractional Baud Rate Register, UARTFBRD */
-    unsigned long LCR;          /* Line Control Register, UARTLC_H */
-    unsigned long CTR;          /* Control Register, UARTCR */
-    unsigned long IFR;          /* Interrupt FIFO Level Select Register, UARTIFLS */
-    unsigned long IMR;          /* Interrupt Mask Set/Clear Register, UARTIMSC */
-    const unsigned long RIS;    /* Raw Interrupt Status Register, UARTRIS, read only */
-    const unsigned long MIS;    /* Mask Interrupt Status Register, UARTMIS, read only */
-    unsigned long ICR;          /* Interrupt Clear Register */
-    unsigned long DCR;          /* DMA Control Register, UARTDMACR */
+    unsigned long UARTILPR;         /* IrDA Low-Power Counter Register, UARTILPR */
+    unsigned long UARTIBRD;         /* Integer Baud Rate Register, UARTIBRD */
+    unsigned long UARTFBRD;         /* Fractional Baud Rate Register, UARTFBRD */
+    unsigned long UARTLC_H;         /* Line Control Register, UARTLC_H */
+    unsigned long UARTCR;           /* Control Register, UARTCR */
+    unsigned long UARTIFLS;         /* Interrupt FIFO Level Select Register, UARTIFLS */
+    unsigned long UARTIMSC;         /* Interrupt Mask Set/Clear Register, UARTIMSC */
+    const unsigned long UARTRIS;    /* Raw Interrupt Status Register, UARTRIS, read only */
+    const unsigned long UARTMIS;    /* Mask Interrupt Status Register, UARTMIS, read only */
+    unsigned long UARTICR;          /* Interrupt Clear Register */
+    unsigned long UARTDMACR;        /* DMA Control Register, UARTDMACR */
 } ARM926EJS_UART_REGS;
 
+/* Shared UART register: */
+#define UARTECR       UARTRSR
 
 static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_BASE);
 
@@ -97,7 +99,7 @@ inline void __printCh(char ch)
     * only the desired character itself, not the whole word.  
     */
    
-    *( (char*) &(pReg->DAT) ) = ch;
+    *( (char*) &(pReg->UARTDR) ) = ch;
 }
 
 /**

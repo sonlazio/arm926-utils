@@ -175,7 +175,7 @@ void timersEnabled(void)
  */
 void timerTicks(unsigned timerNr, unsigned nrTicks, unsigned long value)
 {
-    const unsigned long* pVal;
+    const volatile unsigned long* pVal;
 
     /* sanity check: */
     if ( timerNr>=4 )

@@ -46,7 +46,7 @@ void setTimerLoad(unsigned nr, unsigned long value);
 
 unsigned long getTimerValue(unsigned nr);
 
-const unsigned long* getTimerValueAddr(unsigned nr);
+const volatile unsigned long* getTimerValueAddr(unsigned nr);
 
 int getTimerIRQ(unsigned nr);
 

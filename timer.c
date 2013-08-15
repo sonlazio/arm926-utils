@@ -347,7 +347,7 @@ unsigned long getTimerValue(unsigned nr)
  * 
  * @return read-only address of the timer's counter (i.e. the Value Register)
  */ 
-const unsigned long* getTimerValueAddr(unsigned nr)
+const volatile unsigned long* getTimerValueAddr(unsigned nr)
 {
 
     /* sanity check: */
@@ -356,7 +356,7 @@ const unsigned long* getTimerValueAddr(unsigned nr)
         return NULL;
     }
     
-    return (const unsigned long*) &(timerReg[nr]->VALUE);
+    return (const volatile unsigned long*) &(timerReg[nr]->VALUE);
 }
 
 

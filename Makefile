@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Version 2013-05.23 of the Sourcery toolchain is used as a build tool.
+# See comments in "setenv.sh" for more details about downloading it
+# and setting the appropriate environment variables.
 
 TOOLCHAIN = arm-none-eabi-
 CC = $(TOOLCHAIN)gcc

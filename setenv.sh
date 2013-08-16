@@ -1,11 +1,14 @@
 #!/bin/bash
 #
 # A convenience script that sets environment variables, necessary
-# to use the ARM GCC toolchain.
+# to use the GNU toolchain for the ARM architecture.
 #
 # This script sets PATH and C_INCLUDE_PATH. If you intend to link
 # the toolchain's libraries (e.g. libgcc.a), other variables
 # (e.g. LIBRARY_PATH) must be set a s well.
+#
+# Make sure, you set the environment variables appropriately for your
+# setup. Typically, setting TOOLCHAIN only should be enough.
 #
 # IMPORTANT: this script must be run as 
 #     . ./setenv.sh
@@ -15,13 +18,18 @@
 # otherwise the variables will be discarded immediately after the script completes!
 
 
-# NOTE: on x64 systems, make sure that 'ia32-libs' is also installed!
+# NOTE:
+# Only IA32 version of the toolchain is provided. In order to work properly on 
+# x64 systems, 'ia32-libs' must also be installed.
 
-# I am using a Linux version of the toolchain, downloaded from:
-# http://www.cl.cam.ac.uk/projects/raspberrypi/tutorials/os/downloads.html
-# I have just unpacked the archive into my home directory. All toolchain's 
-# directories are relative to this path:
-TOOLCHAIN=~/arm-2008q3
+# Version 2003-05.23 of "Sourcery CodeBench Lite Edition for ARM EABI" 
+# (now owned by Mentor Graphics) is used as the toolchain. It can be downloaded from
+# http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/arm-eabi
+# (a free registration is necessary to download). I downloaded the advanced package
+# of IA32 GNU/Linux TAR and manually unpacked it into /opt, so all paths 
+# will be relative to this one:
+
+TOOLCHAIN=/opt/arm-2013.05
 
 # Add a path to gnu-none-eabi-* executables:
 export PATH=$PATH:$TOOLCHAIN/bin

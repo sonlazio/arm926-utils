@@ -70,6 +70,9 @@ typedef struct _ARM926EJS_UART_REGS
 /* Shared UART register: */
 #define UARTECR       UARTRSR
 
+/* Bitmask for the Flag Register's TXFF bit (transmit FIFO full) */
+#define FR_TXFF       0x00000020
+
 static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_BASE);
 
 /*
@@ -81,13 +84,18 @@ static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_
 inline void __printCh(char ch)
 {
    /*
-    * TODO
-    * Qemu ignores other UART's registers and to send a character, it is sufficient
-    * to simply write its value to the UART's base address.
-    * 
-    * The future implementations should also handle other registers, even though
-    * Qemu ignores them.
+    * Qemu ignores other UART's registers, anyway the Flag Register is checked 
+    * to better emulate a "real" UART controller.
+    * See description of the register on page 3-8 of DDI0183 for more details.
     */
+   
+   /* 
+    * Poll the Flag Register's TXFF bit until the Transmit FIFO is not full.
+    * When the TXFF bit is set to 1, the controller's internal Transmit FIFO is full.
+    * In this case, wait until a some "waiting" characters have been transmitted and
+    * the TXFF is set to 0, indicating the Transmit FIFO can accept additional characters.
+    */
+   while ( pReg->UARTFR & FR_TXFF );
    
    /*
     * The Data Register is a 32-bit word, however only the least significant 8 bits

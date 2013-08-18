@@ -18,19 +18,22 @@
 
 TOOLCHAIN = arm-none-eabi-
 CC = $(TOOLCHAIN)gcc
+CXX = $(TOOLCHAIN)g++
 AS = $(TOOLCHAIN)as
 LD = $(TOOLCHAIN)ld
 OBJCPY = $(TOOLCHAIN)objcopy
 
 CPUFLAG = -mcpu=arm926ej-s
 
+rebuild : clean all
+
 all : image.bin
 
 image.bin : image.elf
 	$(OBJCPY) -O binary image.elf image.bin
 
-image.elf : startup.o uart.o timer.o main.o linker.ld
-	$(LD) -T linker.ld timer.o uart.o main.o -o image.elf
+image.elf : vectors.o exception.o uart.o timer.o main.o linker.ld
+	$(LD) -T linker.ld exception.o timer.o uart.o main.o -o image.elf
 
 uart.o : uart.c
 	$(CC) -c $(CPUFLAG) uart.c -o uart.o
@@ -41,8 +44,11 @@ timer.o : timer.c
 main.o : main.c
 	$(CC) -c $(CPUFLAG) main.c -o main.o
 
-startup.o : startup.s
-	$(AS) $(CPUFLAG) startup.s -o startup.o
+exception.o : exception.c
+	$(CC) -c $(CPUFLAG) exception.c -o exception.o
+
+vectors.o : vectors.s
+	$(AS) $(CPUFLAG) vectors.s -o vectors.o
 
 clean :
 	rm -f *.o
@@ -50,4 +56,4 @@ clean :
 	rm -f *.img
 	rm -f *.bin
 
-.PHONY : all clean
+.PHONY : all clean rebuild

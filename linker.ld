@@ -15,13 +15,32 @@ limitations under the License.
 */
 
 
-ENTRY(_Start)
+/**
+ * @file
+ *
+ * A linker script that defines the application's memory map, starting point
+ * and stack memory sizes.
+ *
+ * Based on these articles:
+ * http://balau82.wordpress.com/2012/04/15/arm926-interrupts-in-qemu/
+ * http://www.embedded.com/design/mcus-processors-and-socs/4026080/Building-Bare-Metal-ARM-Systems-with-GNU-Part-3
+ */
+
+ENTRY(vectors_start)
 SECTIONS
 {
-    . = 0x10000;        /* place the code to the address where execution starts */
-    startup : { startup.o(.text)}
-    .data : {*(.data)}
-    .bss : {*(.bss)}
-    . = . + 0x500;      /* relative position of the stack */
-    sp_top = .;         /* store the stack address into sp_top */
+    . = 0x10000;    /* Qemu loads the code to this location */
+    .text :
+    {
+        vectors.o  /* Startup code (ARM exception vectors and the reset handler) */
+        *(.text .rodata)
+    }
+
+    .data : { *(.data) }
+    .bss : { *(.bss) }
+    . = ALIGN(8);  /* The section size is aligned to the 8-byte boundary */
+    . = . + 0x500; /* reserve approx. 1kB for the stack memory */
+    stack_top = .;
+    . = . + 0x500; /* reserve approx. 1kB for the IRQ handler's stack memory */
+    irq_stack_top = .;
 }

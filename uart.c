@@ -116,13 +116,13 @@ inline void __printCh(char ch)
  * 
  * @param ch - character to be sent to the UART
  */ 
-void printChar(char ch)
+void uart_printChar(char ch)
 {
     /* just use the provided inline function: */
     __printCh(ch);
 }
 
-void print(const char* str)
+void uart_print(const char* str)
 {
     /* 
       if NULL is passed, avoid possible problems with deferencing of NULL 

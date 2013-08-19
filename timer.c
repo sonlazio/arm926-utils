@@ -111,7 +111,7 @@ static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] =
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void initTimer(uint8_t nr)
+void timer_init(uint8_t nr)
 {
 
     /* sanity check: */
@@ -158,7 +158,7 @@ void initTimer(uint8_t nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void startTimer(uint8_t nr)
+void timer_start(uint8_t nr)
 {
 
     /* sanity check: */
@@ -179,7 +179,7 @@ void startTimer(uint8_t nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void stopTimer(uint8_t nr)
+void timer_stop(uint8_t nr)
 {
 
     /* sanity check: */
@@ -205,7 +205,7 @@ void stopTimer(uint8_t nr)
  * 
  * @return a zero value if the timer is disabled, a nonzero if it is enabled
  */ 
-int8_t isTimerEnabled(uint8_t nr)
+int8_t timer_isEnabled(uint8_t nr)
 {
 
     /* sanity check: */
@@ -226,7 +226,7 @@ int8_t isTimerEnabled(uint8_t nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void enableTimerInterrupt(uint8_t nr)
+void timer_enableInterrupt(uint8_t nr)
 {
  
     /* sanity check: */
@@ -247,7 +247,7 @@ void enableTimerInterrupt(uint8_t nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void disableTimerInterrupt(uint8_t nr)
+void timer_disableInterrupt(uint8_t nr)
 {
 
     /* sanity check: */
@@ -268,7 +268,7 @@ void disableTimerInterrupt(uint8_t nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void clearTimerInterrupt(uint8_t nr)
+void timer_clearInterrupt(uint8_t nr)
 {
 
     /* sanity check: */
@@ -299,7 +299,7 @@ void clearTimerInterrupt(uint8_t nr)
  * @param nr - number of the timer (between 0 and 3)
  * @param value - value to be loaded int the Load Register
  */
-void setTimerLoad(uint8_t nr, uint32_t value)
+void timer_setLoad(uint8_t nr, uint32_t value)
 {
 
     /* sanity check: */
@@ -322,7 +322,7 @@ void setTimerLoad(uint8_t nr, uint32_t value)
  * 
  * @return value of the timer's counter at the moment of reading
  */
-uint32_t getTimerValue(uint8_t nr)
+uint32_t timer_getValue(uint8_t nr)
 {
 
     /* sanity check: */
@@ -348,7 +348,7 @@ uint32_t getTimerValue(uint8_t nr)
  * 
  * @return read-only address of the timer's counter (i.e. the Value Register)
  */ 
-const volatile uint32_t* getTimerValueAddr(uint8_t nr)
+const volatile uint32_t* timer_getValueAddr(uint8_t nr)
 {
 
     /* sanity check: */
@@ -375,7 +375,7 @@ const volatile uint32_t* getTimerValueAddr(uint8_t nr)
  * 
  * @return IRQ number on the primary interrupt controller for the specified timer
  */
-int8_t getTimerIRQ(uint8_t nr)
+int8_t timer_getIRQ(uint8_t nr)
 {
     int8_t retVal;
     

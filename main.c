@@ -31,7 +31,7 @@ limitations under the License.
 
 /* A convenience buffer for strings */
 #define BUFLEN       25
-char strbuf[BUFLEN];
+static char strbuf[BUFLEN];
 
 
 /*
@@ -41,7 +41,7 @@ char strbuf[BUFLEN];
  * 
  * @param val - unsigned long (4 bytes) value to be converted
  */
-void ul2hex(char* buf, uint32_t val)
+static void ul2hex(char* buf, uint32_t val)
 {
     uint8_t i;
     uint8_t digit;
@@ -84,7 +84,7 @@ void ul2hex(char* buf, uint32_t val)
  * 
  * @param val - unsigned long (4 bytes) value to be converted
  */
-void ul2dec(char* buf, uint32_t val)
+static void ul2dec(char* buf, uint32_t val)
 {
     int8_t i;
     uint8_t digit;
@@ -126,12 +126,12 @@ void ul2dec(char* buf, uint32_t val)
  * At the very early stage I was curious about integer sizes.
  * Anyway, this might still be useful, hence I have preserved the function.
  */
-void unsignedLongSize(void)
+static void unsignedLongSize(void)
 {
     strbuf[0] = '0' + sizeof(uint8_t);
     strbuf[1] = '\0';
-    print(strbuf);
-    print("\r\n");
+    uart_print(strbuf);
+    uart_print("\r\n");
 }
 #endif
 
@@ -140,44 +140,44 @@ void unsignedLongSize(void)
  * Checks control registers of all timers and display
  * whether they are enabled
  */
-void timersEnabledTest(void)
+static void timersEnabledTest(void)
 {
     uint8_t i;
     char* pstr;
     
-    print("\r\n=Timer enabled test:=\r\n\r\n");
+    uart_print("\r\n=Timer enabled test:=\r\n\r\n");
     /* Initialize all 4 timers: */
     for ( i=0; i<4; ++i )
     {
-        initTimer(i);
+        timer_init(i);
     }
     
     /* Start the 2nd timer (it is running only, no interrupt is triggered): */
-    setTimerLoad(1, 5000UL);
-    startTimer(1);
+    timer_setLoad(1, 5000UL);
+    timer_start(1);
     
      /* For each available timer... */
     for ( i=0; i<4; ++i )
     {
 
         /* Print the timer's number */
-        print("Timer ");
+        uart_print("Timer ");
         strbuf[0] = '0' + i;
         strbuf[1] = ':';
         strbuf[2] = ' ';
         strbuf[3] = '\0';
-        print(strbuf);
+        uart_print(strbuf);
 
         /* then call the appropriate timer function */
-        pstr = (0!=isTimerEnabled(i) ? "enabled" : "disabled");
-        print(pstr);
-        print("\r\n");
+        pstr = (0!=timer_isEnabled(i) ? "enabled" : "disabled");
+        uart_print(pstr);
+        uart_print("\r\n");
     }
     
     /* The test is completed, stop the 2nd timer */
-    stopTimer(1);
+    timer_stop(1);
     
-    print("\r\n=Timer enabled test completed=\r\n");
+    uart_print("\r\n=Timer enabled test completed=\r\n");
 }
 
 
@@ -188,7 +188,7 @@ void timersEnabledTest(void)
  * By default, the timer is loaded to 1,000,000.
  * At timer's frequency of 1 MHz, this means that 1 "tick" lasts 1 second.
  */
-void timerPollingTest(void)
+static void timerPollingTest(void)
 {
     const uint8_t nr = 2;
     /*
@@ -202,23 +202,23 @@ void timerPollingTest(void)
     
     const volatile uint32_t* pVal;
     
-    print("\r\n=Timer polling test:=\r\n\r\n");
+    uart_print("\r\n=Timer polling test:=\r\n\r\n");
     
-    initTimer(nr);
+    timer_init(nr);
     
     /* 
      * To reduce overhead, obtain direct address of the timer's Value Register.
      * Note that the register should not be modified!
      */
-    pVal = getTimerValueAddr(nr);
+    pVal = timer_getValueAddr(nr);
     /* sanity check */
     if ( NULL==pVal )
     {
         return;
     }
     
-    setTimerLoad(nr, million);
-    startTimer(nr);
+    timer_setLoad(nr, million);
+    timer_start(nr);
     
     /* repeat the sequence for the specified number of ticks... */
     while (tick--)
@@ -226,14 +226,14 @@ void timerPollingTest(void)
         /* poll the Value Register until it reaches 0 */
         while (*pVal);
         /* and output a "tick" */
-	printChar('0' - 1 + nrTicks - tick);
-        print(": polling tick detected\r\n");
+        uart_printChar('0' - 1 + nrTicks - tick);
+        uart_print(": polling tick detected\r\n");
     }
 
     /* When the test is complete, the timer can be disabled/stopped */
-    stopTimer(nr);
+    timer_stop(nr);
     
-    print("\r\n=Timer polling test completed=\r\n");
+    uart_print("\r\n=Timer polling test completed=\r\n");
 }
 
 
@@ -245,10 +245,10 @@ void timerPollingTest(void)
  */ 
 void start(void)
 {
-    print("* * * T E S T   S T A R T * * *\r\n");
+    uart_print("* * * T E S T   S T A R T * * *\r\n");
     
     timersEnabledTest();
     timerPollingTest();
     
-    print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
+    uart_print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
 } 

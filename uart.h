@@ -26,8 +26,8 @@ limitations under the License.
 #ifndef _UART_H_
 #define _UART_H_
 
-void printChar(char ch);
+void uart_printChar(char ch);
 
-void print(const char*);
+void uart_print(const char*);
 
 #endif  /* _UART_H_ */

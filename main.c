@@ -121,6 +121,7 @@ void ul2dec(char* buf, uint32_t val)
 }
 
 
+#if 0
 /*
  * At the very early stage I was curious about integer sizes.
  * Anyway, this might still be useful, hence I have preserved the function.
@@ -132,18 +133,30 @@ void unsignedLongSize(void)
     print(strbuf);
     print("\r\n");
 }
+#endif
 
 
 /*
  * Checks control registers of all timers and display
  * whether they are enabled
  */
-void timersEnabled(void)
+void timersEnabledTest(void)
 {
     uint8_t i;
     char* pstr;
     
-    /* For each available timer... */
+    print("\r\n=Timer enabled test:=\r\n\r\n");
+    /* Initialize all 4 timers: */
+    for ( i=0; i<4; ++i )
+    {
+        initTimer(i);
+    }
+    
+    /* Start the 2nd timer (it is running only, no interrupt is triggered): */
+    setTimerLoad(1, 5000UL);
+    startTimer(1);
+    
+     /* For each available timer... */
     for ( i=0; i<4; ++i )
     {
 
@@ -160,58 +173,67 @@ void timersEnabled(void)
         print(pstr);
         print("\r\n");
     }
+    
+    /* The test is completed, stop the 2nd timer */
+    stopTimer(1);
+    
+    print("\r\n=Timer enabled test completed=\r\n");
 }
 
 
 /*
- * For the specified timer, load its Load Register with the specified value,
- * poll its Value register until it reaches 0 and display "Tick".
- * Repeat the sequence for 'nrTicks' times.
- * 
- * Nothing is done if 'timerNr' is invalid (4 or greater).
- * 
- * @param timerNr - number of timer to test (0 to 3)
- * @param nrTicks - length of the test sequence (how many ticks)
- * @param value - value to be loaded into the timer's Load Register
+ * Polls the selected timer's Value Register until a zero is detected.
+ * Then prints a message about the "tick detected".
+ * The sequence is repeated 10 times.
+ * By default, the timer is loaded to 1,000,000.
+ * At timer's frequency of 1 MHz, this means that 1 "tick" lasts 1 second.
  */
-void timerTicks(uint8_t timerNr, uint8_t nrTicks, uint32_t value)
+void timerPollingTest(void)
 {
+    const uint8_t nr = 2;
+    /*
+     * Hex representation of 1,000,000. Since the timers' counter frequency is
+     * (supposed to be) 1 MHz, it is a convenient factor to specify the tick length
+     * in seconds.
+     */
+    const uint32_t million = 0x000F4240;
+    const uint8_t nrTicks = 10;
+    uint8_t tick = nrTicks;
+    
     const volatile uint32_t* pVal;
-
-    /* sanity check: */
-    if ( timerNr>=4 )
-    {
-         return;
-    }
-
-    /* Prepare and start the timer: */    
-    initTimer(timerNr);
-    setTimerLoad(timerNr, value);
-    startTimer(timerNr);
+    
+    print("\r\n=Timer polling test:=\r\n\r\n");
+    
+    initTimer(nr);
     
     /* 
      * To reduce overhead, obtain direct address of the timer's Value Register.
      * Note that the register should not be modified!
      */
-    pVal = getTimerValueAddr(timerNr);
+    pVal = getTimerValueAddr(nr);
     /* sanity check */
     if ( NULL==pVal )
     {
         return;
     }
     
+    setTimerLoad(nr, million);
+    startTimer(nr);
+    
     /* repeat the sequence for the specified number of ticks... */
-    while (nrTicks--)
+    while (tick--)
     {
         /* poll the Value Register until it reaches 0 */
         while (*pVal);
-        /* and output a "Tick" */
-        print("Tick\r\n");
+        /* and output a "tick" */
+	printChar('0' - 1 + nrTicks - tick);
+        print(": polling tick detected\r\n");
     }
 
-    /* When the test is complete, the timer can be disabled */
-    stopTimer(timerNr);
+    /* When the test is complete, the timer can be disabled/stopped */
+    stopTimer(nr);
     
+    print("\r\n=Timer polling test completed=\r\n");
 }
 
 
@@ -223,23 +245,10 @@ void timerTicks(uint8_t timerNr, uint8_t nrTicks, uint32_t value)
  */ 
 void start(void)
 {
-    /*
-     * Hex representation of 1,000,000. Since the timers' counter frequency is
-     * (supposed to be) 1 MHz, it is a convenient factor to specify the tick length
-     * as "n seconds".
-     */
-    const uint32_t million = 0x000F4240;
+    print("* * * T E S T   S T A R T * * *\r\n");
     
-    unsignedLongSize();
+    timersEnabledTest();
+    timerPollingTest();
     
-    /* Enable the 2nd timer */
-    startTimer(1);
-    timersEnabled();
-    /* and disable it after the test */
-    stopTimer(1);
-    
-    timerTicks(2, 10, million);
-    
-    print("* * * T E S T   C O M P L E T E * * *\r\n");
-
+    print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
 } 

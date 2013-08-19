@@ -29,7 +29,8 @@ limitations under the License.
  * @author Jernej Kovacic
  */
 
-#include <stdlib.h>
+#include <stdint.h>
+#include <stddef.h>
 
 /* Base addresses of UART registers (see page 4-68 of the DUI0225D): */
 #define UART0_BASE      0x101F1000
@@ -49,22 +50,22 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_UART_REGS
 {
-    unsigned long UARTDR;           /* UART Data Register, UARTDR */
-    unsigned long UARTRSR;          /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
-    const unsigned long Reserved1[4];  /* reserved, should not be modified */
-    const unsigned long UARTFR;     /* Flag Register, UARTFR, read only */
-    const unsigned long Reserved2;  /* reserved, should not be modified */
-    unsigned long UARTILPR;         /* IrDA Low-Power Counter Register, UARTILPR */
-    unsigned long UARTIBRD;         /* Integer Baud Rate Register, UARTIBRD */
-    unsigned long UARTFBRD;         /* Fractional Baud Rate Register, UARTFBRD */
-    unsigned long UARTLC_H;         /* Line Control Register, UARTLC_H */
-    unsigned long UARTCR;           /* Control Register, UARTCR */
-    unsigned long UARTIFLS;         /* Interrupt FIFO Level Select Register, UARTIFLS */
-    unsigned long UARTIMSC;         /* Interrupt Mask Set/Clear Register, UARTIMSC */
-    const unsigned long UARTRIS;    /* Raw Interrupt Status Register, UARTRIS, read only */
-    const unsigned long UARTMIS;    /* Mask Interrupt Status Register, UARTMIS, read only */
-    unsigned long UARTICR;          /* Interrupt Clear Register */
-    unsigned long UARTDMACR;        /* DMA Control Register, UARTDMACR */
+    uint32_t UARTDR;               /* UART Data Register, UARTDR */
+    uint32_t UARTRSR;              /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
+    const uint32_t Reserved1[4];   /* reserved, should not be modified */
+    const uint32_t UARTFR;         /* Flag Register, UARTFR, read only */
+    const uint32_t Reserved2;      /* reserved, should not be modified */
+    uint32_t UARTILPR;             /* IrDA Low-Power Counter Register, UARTILPR */
+    uint32_t UARTIBRD;             /* Integer Baud Rate Register, UARTIBRD */
+    uint32_t UARTFBRD;             /* Fractional Baud Rate Register, UARTFBRD */
+    uint32_t UARTLC_H;             /* Line Control Register, UARTLC_H */
+    uint32_t UARTCR;               /* Control Register, UARTCR */
+    uint32_t UARTIFLS;             /* Interrupt FIFO Level Select Register, UARTIFLS */
+    uint32_t UARTIMSC;             /* Interrupt Mask Set/Clear Register, UARTIMSC */
+    const uint32_t UARTRIS;        /* Raw Interrupt Status Register, UARTRIS, read only */
+    const uint32_t UARTMIS;        /* Mask Interrupt Status Register, UARTMIS, read only */
+    uint32_t UARTICR;              /* Interrupt Clear Register */
+    uint32_t UARTDMACR;            /* DMA Control Register, UARTDMACR */
 } ARM926EJS_UART_REGS;
 
 /* Shared UART register: */
@@ -131,15 +132,7 @@ void print(const char* str)
     char* cp;
     
     /* handle possible NULL value of str: */
-    if ( NULL == str )
-    {
-        cp = null_str;
-    }
-    else
-    {
-        /* Otherwise the actual passed string will be printed:*/
-        cp = (char*) str;
-    }
+    cp = ( NULL==str ? null_str : (char*) str );
     
     /*
      * Just print each character until a zero terminator is detected

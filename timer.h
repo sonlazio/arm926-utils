@@ -28,26 +28,29 @@ limitations under the License.
 #ifndef _TIMER_H_
 #define _TIMER_H_
 
-void initTimer(unsigned nr);
+#include <stdint.h>
 
-void startTimer(unsigned nr);
 
-void stopTimer(unsigned nr);
+void initTimer(uint8_t nr);
 
-int isTimerEnabled(unsigned nr);
+void startTimer(uint8_t nr);
 
-void enableTimerInterrupt(unsigned nr);
+void stopTimer(uint8_t nr);
 
-void disableTimerInterrupt(unsigned nr);
+int8_t isTimerEnabled(uint8_t nr);
 
-void clearTimerInterrupt(unsigned nr);
+void enableTimerInterrupt(uint8_t nr);
 
-void setTimerLoad(unsigned nr, unsigned long value);
+void disableTimerInterrupt(uint8_t nr);
 
-unsigned long getTimerValue(unsigned nr);
+void clearTimerInterrupt(uint8_t nr);
 
-const volatile unsigned long* getTimerValueAddr(unsigned nr);
+void setTimerLoad(uint8_t nr, uint32_t value);
 
-int getTimerIRQ(unsigned nr);
+uint32_t getTimerValue(uint8_t nr);
+
+const volatile uint32_t* getTimerValueAddr(uint8_t nr);
+
+int8_t getTimerIRQ(uint8_t nr);
 
 #endif  /* _TIMER_H_*/

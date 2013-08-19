@@ -23,7 +23,8 @@ limitations under the License.
  */
 
 
-#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "uart.h"
 #include "timer.h"
@@ -40,10 +41,10 @@ char strbuf[BUFLEN];
  * 
  * @param val - unsigned long (4 bytes) value to be converted
  */
-void ul2hex(char* buf, unsigned long val)
+void ul2hex(char* buf, uint32_t val)
 {
-    int i;
-    unsigned char digit;
+    uint8_t i;
+    uint8_t digit;
     
     /* Start the string with '0x' */
     buf[0] = '0';
@@ -53,7 +54,7 @@ void ul2hex(char* buf, unsigned long val)
     for ( i=0; i<8; i++ )
     {
         /* The last 4 bytes of val, i.e. val % 16 */
-        digit = (char) (val & 0x0F);
+        digit = (uint8_t) (val & 0x0F);
 
         /* convert it to a hex digit char: 0..9A..F */
         if ( digit<10 )
@@ -83,10 +84,10 @@ void ul2hex(char* buf, unsigned long val)
  * 
  * @param val - unsigned long (4 bytes) value to be converted
  */
-void ul2dec(char* buf, unsigned long val)
+void ul2dec(char* buf, uint32_t val)
 {
-    int i;
-    unsigned char digit;
+    int8_t i;
+    uint8_t digit;
     
     /* fill the buffer with spaces*/
     for ( i=0; i<19; i++ )
@@ -126,7 +127,7 @@ void ul2dec(char* buf, unsigned long val)
  */
 void unsignedLongSize(void)
 {
-    strbuf[0] = '0' + sizeof(unsigned long);
+    strbuf[0] = '0' + sizeof(uint8_t);
     strbuf[1] = '\0';
     print(strbuf);
     print("\r\n");
@@ -139,7 +140,7 @@ void unsignedLongSize(void)
  */
 void timersEnabled(void)
 {
-    int i;
+    uint8_t i;
     char* pstr;
     
     /* For each available timer... */
@@ -173,9 +174,9 @@ void timersEnabled(void)
  * @param nrTicks - length of the test sequence (how many ticks)
  * @param value - value to be loaded into the timer's Load Register
  */
-void timerTicks(unsigned timerNr, unsigned nrTicks, unsigned long value)
+void timerTicks(uint8_t timerNr, uint8_t nrTicks, uint32_t value)
 {
-    const volatile unsigned long* pVal;
+    const volatile uint32_t* pVal;
 
     /* sanity check: */
     if ( timerNr>=4 )
@@ -227,7 +228,7 @@ void start(void)
      * (supposed to be) 1 MHz, it is a convenient factor to specify the tick length
      * as "n seconds".
      */
-    const unsigned long million = 0x000F4240;
+    const uint32_t million = 0x000F4240;
     
     unsignedLongSize();
     

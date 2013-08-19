@@ -26,6 +26,8 @@ limitations under the License.
  * @author Jernej Kovacic
  */
 
+#include <stdint.h>
+
 /*
  * TODO
  * Right now, handling of IRQ interrupt is not supported yet.
@@ -78,11 +80,11 @@ void __attribute__((interrupt)) fiq_handler(void)
 void copy_vectors(void) 
 {
     /* Both values are declared in vectors.s: */
-    extern unsigned long vectors_start;
-    extern unsigned long vectors_end;
+    extern uint32_t vectors_start;
+    extern uint32_t vectors_end;
     
-    unsigned long* vectors_src = &vectors_start;
-    unsigned long* vectors_dst = (unsigned long*) 0x00000000;
+    uint32_t* vectors_src = &vectors_start;
+    uint32_t* vectors_dst = (uint32_t*) 0x00000000;
  
     /*
      * Vectors are copied backwards in the memory (from something positive to 0x0000000) 

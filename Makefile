@@ -25,9 +25,9 @@ OBJCPY = $(TOOLCHAIN)objcopy
 
 CPUFLAG = -mcpu=arm926ej-s
 
-rebuild : clean all
-
 all : image.bin
+
+rebuild : clean all
 
 image.bin : image.elf
 	$(OBJCPY) -O binary image.elf image.bin

@@ -30,7 +30,8 @@ limitations under the License.
  * @author Jernej Kovacic
  */
 
-#include <stdlib.h>
+#include <stdint.h>
+#include <stddef.h>
 
 /* Number of timers: */
 #define N_TIMERS        4
@@ -76,13 +77,13 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_TIMER_REGS 
 {
-	unsigned long LOAD;           /* Load Register, TimerXLoad */
-	const unsigned long VALUE;    /* Current Value Register, TimerXValue, read only */
-	unsigned long CONTROL;        /* Control Register, TimerXControl */
-	unsigned long INTCLR;         /* Interrupt Clear Register, TimerXIntClr */
-	const unsigned long RIS;      /* Raw Interrupt Status Register, TimerXRIS, read only */
-	const unsigned long MIS;      /* Masked Interrupt Status Register, TimerXMIS, read only */
-	unsigned long BGLOAD;         /* Background Load Register, TimerXBGLoad */
+	uint32_t LOAD;           /* Load Register, TimerXLoad */
+	const uint32_t VALUE;    /* Current Value Register, TimerXValue, read only */
+	uint32_t CONTROL;        /* Control Register, TimerXControl */
+	uint32_t INTCLR;         /* Interrupt Clear Register, TimerXIntClr */
+	uint32_t RIS;            /* Raw Interrupt Status Register, TimerXRIS, read only */
+	uint32_t MIS;            /* Masked Interrupt Status Register, TimerXMIS, read only */
+	uint32_t BGLOAD;         /* Background Load Register, TimerXBGLoad */
 } ARM926EJS_TIMER_REGS;
 
 /*
@@ -110,7 +111,7 @@ static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] =
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void initTimer(unsigned nr)
+void initTimer(uint8_t nr)
 {
 
     /* sanity check: */
@@ -157,7 +158,7 @@ void initTimer(unsigned nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void startTimer(unsigned nr)
+void startTimer(uint8_t nr)
 {
 
     /* sanity check: */
@@ -178,7 +179,7 @@ void startTimer(unsigned nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void stopTimer(unsigned nr)
+void stopTimer(uint8_t nr)
 {
 
     /* sanity check: */
@@ -204,7 +205,7 @@ void stopTimer(unsigned nr)
  * 
  * @return a zero value if the timer is disabled, a nonzero if it is enabled
  */ 
-int isTimerEnabled(unsigned nr)
+int8_t isTimerEnabled(uint8_t nr)
 {
 
     /* sanity check: */
@@ -225,7 +226,7 @@ int isTimerEnabled(unsigned nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void enableTimerInterrupt(unsigned nr)
+void enableTimerInterrupt(uint8_t nr)
 {
  
     /* sanity check: */
@@ -246,7 +247,7 @@ void enableTimerInterrupt(unsigned nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void disableTimerInterrupt(unsigned nr)
+void disableTimerInterrupt(uint8_t nr)
 {
 
     /* sanity check: */
@@ -267,7 +268,7 @@ void disableTimerInterrupt(unsigned nr)
  * 
  * @param nr - number of the timer (between 0 and 3)
  */
-void clearTimerInterrupt(unsigned nr)
+void clearTimerInterrupt(uint8_t nr)
 {
 
     /* sanity check: */
@@ -298,7 +299,7 @@ void clearTimerInterrupt(unsigned nr)
  * @param nr - number of the timer (between 0 and 3)
  * @param value - value to be loaded int the Load Register
  */
-void setTimerLoad(unsigned nr, unsigned long value)
+void setTimerLoad(uint8_t nr, uint32_t value)
 {
 
     /* sanity check: */
@@ -321,7 +322,7 @@ void setTimerLoad(unsigned nr, unsigned long value)
  * 
  * @return value of the timer's counter at the moment of reading
  */
-unsigned long getTimerValue(unsigned nr)
+uint32_t getTimerValue(uint8_t nr)
 {
 
     /* sanity check: */
@@ -347,7 +348,7 @@ unsigned long getTimerValue(unsigned nr)
  * 
  * @return read-only address of the timer's counter (i.e. the Value Register)
  */ 
-const volatile unsigned long* getTimerValueAddr(unsigned nr)
+const volatile uint32_t* getTimerValueAddr(uint8_t nr)
 {
 
     /* sanity check: */
@@ -356,7 +357,7 @@ const volatile unsigned long* getTimerValueAddr(unsigned nr)
         return NULL;
     }
     
-    return (const volatile unsigned long*) &(timerReg[nr]->VALUE);
+    return (const volatile uint32_t*) &(timerReg[nr]->VALUE);
 }
 
 
@@ -374,9 +375,9 @@ const volatile unsigned long* getTimerValueAddr(unsigned nr)
  * 
  * @return IRQ number on the primary interrupt controller for the specified timer
  */
-int getTimerIRQ(unsigned nr)
+int8_t getTimerIRQ(uint8_t nr)
 {
-    int retVal;
+    int8_t retVal;
     
     switch (nr)
     {

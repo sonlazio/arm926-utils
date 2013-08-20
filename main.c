@@ -26,6 +26,7 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
+#include "interrupt.h"
 #include "uart.h"
 #include "timer.h"
 
@@ -237,8 +238,67 @@ static void timerPollingTest(void)
 }
 
 
+/* counter of ticks, used by IRQ servicing routines */
+static uint32_t __tick_cntr = 0;
+
 /*
- * Start point of the application.
+ * An ISR routine, invoked whenever the Timer 0 (or 1) triggers the IRQ 4
+ */
+static void timer0ISR(void)
+{
+    /*
+     * When this ISR routine is invoked, a message is sent to the UART:
+     */
+    uart_printChar('0' + __tick_cntr);
+    uart_print(": IRQ tick detected\r\n");
+    
+    /* Increase the number of ticks */
+    __tick_cntr++;
+    
+    /* And finally, acknowledge the interrupt, i.e. clear it in the timer */
+    timer_clearInterrupt(0);
+}
+
+/*
+ * A test function for testing nonvectored IRQ handling from the Timer 0.
+ * The timer is prepared, IRQ4 is enabled, when 10 ticks occur, everything
+ * is cleaned up.
+ */
+static void timerNvIrqTest(void)
+{
+    uart_print("\r\n=Timer IRQ test:=\r\n\r\n");
+    
+    /* Initialize the PIC */
+    pic_init();
+    
+    /* Assign the ISR routine for the IRQ4, triggered by timers 0 and 1 */
+    pic_registerNonVectoredIrq(4, timer0ISR);
+    /* Enable IRQ4 */
+    pic_enableInterrupt(4);
+    
+    /* Initialize the timer 0 to triggger IRQ4 every 1000000 micro seconds, i.e. every 1 s */
+    timer_init(0);
+    timer_setLoad(0, 1000000);
+    timer_enableInterrupt(0);
+    
+    /* Reset the tick counter and start the timer */
+    __tick_cntr = 0;
+    timer_start(0);
+    
+    /* just wait until IRQ4 is triggered 10 times */
+    while ( __tick_cntr<10 );
+    
+    /* Cleanup. Reset the counter, disable interrupts, stop the Timer... */
+    __tick_cntr = 0;
+    timer_disableInterrupt(0);
+    timer_stop(0);
+    pic_disableInterrupt(4);
+    
+    uart_print("\r\n=Timer IRQ test completed=\r\n");
+}
+
+/*
+ * Starting point of the application.
  * 
  * Currently it only executes a few simple test tasks that output
  * something to the serial port.
@@ -249,6 +309,7 @@ void start(void)
     
     timersEnabledTest();
     timerPollingTest();
+    timerNvIrqTest();
     
     uart_print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
 } 

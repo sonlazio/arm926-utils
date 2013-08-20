@@ -28,16 +28,17 @@ limitations under the License.
 
 #include <stdint.h>
 
+/* Declaration of IRQ handler routine, implemented in interrupt.c */
+extern void _pic_IrqHandler(void);
+
 /*
- * TODO
- * Right now, handling of IRQ interrupt is not supported yet.
- * Hence the handler is currently "implemented" as an infinite loop.
- * 
- * As soon as IRQ handling is supported, this will be reimpleneted.
+ * Whenever an IRQ interrupt is triggered, this exception handler is called
+ * that further calls the IRQ handler routine. The routine is implemented
+ * in interrupt.c. 
  */
 void __attribute__((interrupt)) irq_handler() 
 {
-    for ( ; ; );
+    _pic_IrqHandler();
 }
  
 

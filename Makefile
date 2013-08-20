@@ -32,8 +32,11 @@ rebuild : clean all
 image.bin : image.elf
 	$(OBJCPY) -O binary image.elf image.bin
 
-image.elf : vectors.o exception.o uart.o timer.o main.o linker.ld
-	$(LD) -T linker.ld exception.o timer.o uart.o main.o -o image.elf
+image.elf : vectors.o exception.o interrupt.o uart.o timer.o main.o linker.ld
+	$(LD) -T linker.ld exception.o interrupt.o timer.o uart.o main.o -o image.elf
+
+interrupt.o : interrupt.c
+	$(CC) -c $(CPUFLAG) interrupt.c -o interrupt.o
 
 uart.o : uart.c
 	$(CC) -c $(CPUFLAG) uart.c -o uart.o

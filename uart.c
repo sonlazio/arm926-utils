@@ -82,7 +82,7 @@ static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_
  * 
  * @param ch - character to be sent to the UART
  */
-inline void __printCh(char ch)
+static inline void __printCh(char ch)
 {
    /*
     * Qemu ignores other UART's registers, anyway the Flag Register is checked 

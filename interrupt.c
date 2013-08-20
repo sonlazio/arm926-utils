@@ -683,6 +683,9 @@ void pic_clearSoftwareInterrupt(void)
      * See description of the register on page 3-8 of DDI0181.
      *
      * IRQ1 is reserved for a pure software interrupt. See pp 4.47 and 4-48 of DUI0225D.
+     * 
+     * The register is write only and should not be read. Only 1-bits clear
+     * their corresponding IRQs, 0-bits have no offect on "their" IRQs.
      */
-    pPicReg->VICSOFTINTCLEAR |= (UL1 << SW_PIC_IRQ);
+    pPicReg->VICSOFTINTCLEAR = (UL1 << SW_PIC_IRQ);
 }

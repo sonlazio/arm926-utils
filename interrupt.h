@@ -32,6 +32,10 @@ limitations under the License.
 
 typedef void (*IsrPrototype)(void);
 
+void irq_enableIrqMode(void);
+
+void irq_disableIrqMode(void);
+
 void pic_registerNonVectoredIrq(uint8_t irq, IsrPrototype addr);
 
 void pic_init(void);

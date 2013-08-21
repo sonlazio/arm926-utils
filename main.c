@@ -129,7 +129,7 @@ static void ul2dec(char* buf, uint32_t val)
  */
 static void unsignedLongSize(void)
 {
-    strbuf[0] = '0' + sizeof(uint8_t);
+    strbuf[0] = '0' + sizeof(unsigned long);
     strbuf[1] = '\0';
     uart_print(strbuf);
     uart_print("\r\n");
@@ -238,8 +238,11 @@ static void timerPollingTest(void)
 }
 
 
-/* counter of ticks, used by IRQ servicing routines */
-static uint32_t __tick_cntr = 0;
+/* 
+ * Counter of ticks, used by IRQ servicing routines. It is used by
+ *several functions simultaneously, so it should be volatile.  
+ */
+static volatile uint32_t __tick_cntr = 0;
 
 /*
  * An ISR routine, invoked whenever the Timer 0 (or 1) triggers the IRQ 4
@@ -273,6 +276,10 @@ static void timerNvIrqTest(void)
     
     /* Assign the ISR routine for the IRQ4, triggered by timers 0 and 1 */
     pic_registerNonVectoredIrq(4, timer0ISR);
+    
+    /* Enable IRQ mode */
+    irq_enableIrqMode();
+    
     /* Enable IRQ4 */
     pic_enableInterrupt(4);
     
@@ -293,6 +300,9 @@ static void timerNvIrqTest(void)
     timer_disableInterrupt(0);
     timer_stop(0);
     pic_disableInterrupt(4);
+    
+    /* Disable IRQ mode */
+    irq_disableIrqMode();
     
     uart_print("\r\n=Timer IRQ test completed=\r\n");
 }

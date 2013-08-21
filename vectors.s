@@ -59,14 +59,16 @@ reset_handler:
  MSR cpsr, r1                           @ update CPSR (program status register) for IRQ mode
  
  LDR sp, =irq_stack_top                 @ stack for the IRQ mode
- /* Enable IRQs */
- BIC r0, r0, #0x80                      @ clear the 8th bit (enables IRQ mode) of r0
  
- MSR cpsr, r0                           @ restore the CSPR (to Supervisor mode) with IRQ mode enabled
+ @ It is a good idea if IRQ mode is disabled by default until all ISR vectors
+ @ are configured properly, and then enabled "manually".
+ ORR r0, r0, #0x80                      @ set the 8th bit (disables IRQ mode) of r0
+ 
+ MSR cpsr, r0                           @ restore the CSPR (to Supervisor mode) with IRQ mode disabled
  
  BL start                               @ Starting point (start() instead of main()!)
  B .                                    @ infinite loop (if start() terminates)
  
 .end
 
-@ Other handlers and auxiliary functions are impleneted in exception.c.
+@ Other handlers and auxiliary functions are implemented in exception.c.

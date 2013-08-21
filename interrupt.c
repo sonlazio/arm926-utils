@@ -26,6 +26,10 @@ limitations under the License.
  *   http://infocenter.arm.com/help/topic/com.arm.doc.dui0225d/DUI0225D_versatile_application_baseboard_arm926ej_s_ug.pdf
  * - PrimeCell Vectored Interrupt Controller (PL190) Technical Reference Manual (DDI0181):
  *   http://infocenter.arm.com/help/topic/com.arm.doc.ddi0181e/DDI0181.pdf
+ *
+ * Useful details about the CPU's IRQ mode are available at:
+ * - ARM9EJ-S, Technical Reference Manual (DDI0222):
+ *   http://infocenter.arm.com/help/topic/com.arm.doc.ddi0222b/DDI0222.pdf 
  * 
  * @author Jernej Kovacic
  */
@@ -141,7 +145,7 @@ static IsrPrototype __isrNV[NR_INTERRUPTS];
  * - 0: nonvectored mode
  * - any other value: vectored mode
  */ 
-static int8_t __irq_vector_mode = 0;
+static volatile int8_t __irq_vector_mode = 0;
 
 
 #if 0
@@ -158,6 +162,57 @@ void __pic_set_irq_vector_mode(int8_t mode)
     __irq_vector_mode = mode;
 }
 #endif
+
+
+/**
+ * Enable CPU's IRQ mode that handles IRQ interrupr requests.
+ */
+void irq_enableIrqMode(void) 
+{
+    /*
+     * To enable IRQ mode, bit 7 of the Program Status Register (CSPR)
+     * must be cleared to 0. See pp. 2-15 to 2-17 of the DDI0222 for more details.
+     * The CSPR can only be accessed using assembler.
+     */
+    
+    __asm volatile("mrs r0,cpsr");      /* Read in the CPSR register. */
+    __asm volatile("bic r0,r0,#0x80");  /* Clear bit 8, (0x80) -- Causes IRQs to be enabled. */
+    __asm volatile("msr cpsr_c, r0");   /* Write it back to the CPSR register */
+}
+
+
+/**
+ * Disable CPU's IRQ mode that handles IRQ interrupr requests.
+ */
+void irq_disableIrqMode(void) 
+{
+    /*
+     * To disable IRQ mode, bit 7 of the Program Status Register (CSPR)
+     * must be set t1 0. See pp. 2-15 to 2-17 of the DDI0222 for more details.
+     * The CSPR can only be accessed using assembler.
+     */
+    
+    __asm volatile("mrs r0,cpsr");      /* Read in the CPSR register. */
+    __asm volatile("orr r0,r0,#0x80");  /* Set bit 8, (0x80) -- Causes IRQs to be disabled. */
+    __asm volatile("msr cpsr_c, r0");   /* Write it back to the CPSR register. */
+}
+
+
+/*
+ * A dummy ISR servicing routine.
+ * 
+ * It is supposed to be set as default address of all ISR vectors. If an "unconfigured"
+ * IRQ is triggered, it is still better to be serviced by this dummy function instead of
+ * being directed to an arbitrary address with possibly dangerous effects.
+ */
+static void __irq_dummyISR(void)
+{
+    /* 
+     * An empty function.
+     * 
+     * TODO: maybe it could emit a warning????
+     */
+}
 
 
 /*
@@ -278,7 +333,7 @@ void pic_init(void)
     for ( i=0; i<NR_VECTORS; ++i )
     {
         /* clear its ISR address */
-        pPicReg->VICVECTADDRn[i] = 0x00000000;
+        pPicReg->VICVECTADDRn[i] = (uint32_t) __irq_dummyISR;
         /* and clear its control register */
         pPicReg->VICVECTCNTLn[i] = 0x00000000;
     }
@@ -286,7 +341,7 @@ void pic_init(void)
     /* clear all nonvectored ISR addresses: */
     for ( i=0; i<NR_INTERRUPTS; ++i )
     {
-        __isrNV[i] = (IsrPrototype) 0x00000000;
+        __isrNV[i] = __irq_dummyISR;
     }
     
     /* set to non vectored mode (currently the only supported one) */

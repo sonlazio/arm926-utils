@@ -10,7 +10,11 @@
 
 
 # Obtain the PID of (presumably) the only running instance of "system-arm-qemu"...
-PID=`ps aux | grep qemu-system-arm | awk '$11=="qemu-system-arm" {print $2}'`
+
+# The 11th element of the appropriate output of 'ps' must end with "qemu-system-arm":
+
+# PID=`ps aux | grep qemu-system-arm | awk '$11=="qemu-system-arm" {print $2}'`
+PID=`ps aux | grep qemu-system-arm | awk '$11~/qemu-system-arm$/ {print $2}'`
 
 # ... and kill the process with the PID
 kill $PID

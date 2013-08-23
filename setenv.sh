@@ -52,3 +52,7 @@ export C_INCLUDE_PATH=$TOOLCHAIN/arm-none-eabi/include
 # http://stackoverflow.com/questions/344317/where-does-gcc-look-for-c-and-c-header-files
 
 # Export other environment variables (e.g. LIBRARY_PATH) if necessary.
+
+
+# Variable TOOLCHAIN not needed anymore, it can be unset
+unset TOOLCHAIN

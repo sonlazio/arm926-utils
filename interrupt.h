@@ -51,12 +51,6 @@ int8_t pic_isInterruptEnabled(uint8_t irq);
 int8_t pic_getInterruptType(uint8_t irq);
 
 void pic_setInterruptType(uint8_t irq, int8_t toIrq);
-
-
-#if 0
-IsrPrototype pic_getVectorAddr(void);
-
-void pic_writeVectAddr(void);
  
 void pic_setDefaultVectorAddr(IsrPrototype addr);
 
@@ -69,8 +63,8 @@ int8_t pic_enableVectorIrq(uint8_t irq);
 void pic_disableVectorIrq(uint8_t irq);
 
 void pic_unregisterAllVectorIrqs(void);
-#endif
 
+void pic_disableAllVectorIrqs(void);
 
 void pic_setSoftwareInterrupt(void);
 

@@ -269,7 +269,7 @@ static void timer0ISR(void)
  */
 static void timerNvIrqTest(void)
 {
-    uart_print("\r\n=Timer IRQ test:=\r\n\r\n");
+    uart_print("\r\n=Timer non-vectored IRQ test:=\r\n\r\n");
     
     /* Initialize the PIC */
     pic_init();
@@ -304,8 +304,67 @@ static void timerNvIrqTest(void)
     /* Disable IRQ mode */
     irq_disableIrqMode();
     
-    uart_print("\r\n=Timer IRQ test completed=\r\n");
+    uart_print("\r\n=Timer IRQ non-vectored test completed=\r\n");
 }
+
+
+
+extern void _pic_set_irq_vector_mode(int8_t mode);
+
+
+/*
+ * A test function for testing vectored IRQ handling from the Timer 0.
+ * The timer is prepared, IRQ4 is enabled, when 10 ticks occur, everything
+ * is cleaned up.
+ */
+static void timerVectIrqTest(void)
+{
+
+    uart_print("\r\n=Timer vectored IRQ test:=\r\n\r\n");
+    
+    /* Initialize the PIC */
+    pic_init();
+    
+    _pic_set_irq_vector_mode(1);
+    
+    /* Assign the ISR routine for the IRQ 4, triggered by timers 0 and 1 */
+    pic_registerVectorIrq(4, timer0ISR);
+    
+    /* Enable IRQ mode */
+    irq_enableIrqMode();
+    
+    /* Enable IRQ4 */
+    pic_enableInterrupt(4);
+    
+    /* Initialize the timer 0 to triggger IRQ 4 every 1000000 micro seconds, i.e. every 1 s */
+    timer_init(0);
+    timer_setLoad(0, 1000000);
+    timer_enableInterrupt(0);
+    
+    /* Reset the tick counter and start the timer */
+    __tick_cntr = 0;
+    timer_start(0);
+    
+    
+    /* just wait until IRQ4 is triggered 10 times */
+    while ( __tick_cntr<10 );
+    
+    /* Cleanup. Reset the counter, disable interrupts, stop the Timer... */
+    __tick_cntr = 0;
+    timer_disableInterrupt(0);
+    timer_stop(0);
+    pic_disableInterrupt(4);
+    
+    /* Disable IRQ mode */
+    irq_disableIrqMode();
+    
+    /* Set IRQ handling mode back to non-vectored: */
+    _pic_set_irq_vector_mode(0);
+    
+    uart_print("\r\n=Timer vectored IRQ test completed=\r\n");
+}
+
+
 
 /*
  * Starting point of the application.
@@ -321,5 +380,19 @@ void start(void)
     timerPollingTest();
     timerNvIrqTest();
     
+    /*
+     * W A R N I N G :
+     * Early versions of Qemu implement vectored IRQ handling improperly. In such a case,
+     * this function MUST NOT BE RUN as wrong ISR routines may be run due ti this bug!
+     *
+     * This defect was fixed at Qemu 1.3 (released in September 2012). More details:
+     * - https://lists.gnu.org/archive/html/qemu-devel/2012-08/msg03354.html
+     * - https://github.com/qemu/qemu/commit/14c126baf1c38607c5bd988878de85a06cefd8cf
+     */
+    timerVectIrqTest();
+    
     uart_print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
+    
+    /* End in an infinite loop */
+    for ( ; ; );
 } 

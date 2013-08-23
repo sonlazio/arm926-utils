@@ -48,12 +48,12 @@ limitations under the License.
 #define SIC_BASE      0x10003000
 
 /*
- * 32-bit Registers of the Primary Interrupt Controller,
+ * 32-bit registers of the Primary Interrupt Controller,
  * relative to the controller's base address:
  * See page 3-3 of DDI0181.
  * 
  * Although not explicitly mentioned by DDI0181, there are gaps
- * among certain groups of register. The gaps are filled by
+ * among certain groups of registers. The gaps are filled by
  * Unused* "registers" and are treated as "should not be modified".
  */
 typedef struct _ARM926EJS_PIC_REGS
@@ -115,14 +115,14 @@ typedef struct _ARM926EJS_SIC_REGS
 
 #endif /* #if 0 */
 
-#define UL1             0x00000001
-#define BM_5BITS        0x0000001F
-#define BM_6TH_BIT      0x00000020
+#define UL1                    0x00000001
+#define BM_IRQ_PART            0x0000001F
+#define BM_VECT_ENABLE_BIT     0x00000020
 
 #define NR_VECTORS      16
 #define NR_INTERRUPTS   32
 
-/* Software interrupt number, see pp. 4-47 and 4-48 of DUI0225D */
+/* Software IRQ number, see pp. 4-47 and 4-48 of DUI0225D */
 #define SW_PIC_IRQ     1
 
 static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_BASE);
@@ -140,6 +140,16 @@ static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_B
  */
 static IsrPrototype __isrNV[NR_INTERRUPTS];
 
+
+/*
+ * A table with IRQs serviced by each VICVECTADDRn.
+ * If a table's field is negative, its corresponding VICVECTADDRn presumably
+ * does not serve any IRQ. In this case, the corresponding VICVECTCNTLn is
+ * supposed to be set ot 0 and its VICVECTADDRn should be set ot __irq_dummyISR.
+ */
+static int8_t __irqVect[NR_VECTORS];
+
+
 /*
  * IRQ handling mode:
  * - 0: nonvectored mode
@@ -148,20 +158,18 @@ static IsrPrototype __isrNV[NR_INTERRUPTS];
 static volatile int8_t __irq_vector_mode = 0;
 
 
-#if 0
 /*
  * A "hidden" function that determines IRQ handling policy (vectored vs nonvectored).
- * It is used in this testing application for testing purposes only, in real applications 
+ * It is used in this testing application for testing purposes only, in real world applications 
  * it should never be used, this is why it should not be exposed in a .h file.
  * 
- * Until vectored IRQ handling is not supported, the function's implementation is commented out.
+ * @param mode - 0 for non-vectored IRQ handling, any other value for vectored IRQ handling
  */
-void __pic_set_irq_vector_mode(int8_t mode)
+void _pic_set_irq_vector_mode(int8_t mode)
 {
     /* just set a variable to the requested mode */
     __irq_vector_mode = mode;
 }
-#endif
 
 
 /**
@@ -175,9 +183,9 @@ void irq_enableIrqMode(void)
      * The CSPR can only be accessed using assembler.
      */
     
-    __asm volatile("mrs r0,cpsr");      /* Read in the CPSR register. */
-    __asm volatile("bic r0,r0,#0x80");  /* Clear bit 8, (0x80) -- Causes IRQs to be enabled. */
-    __asm volatile("msr cpsr_c, r0");   /* Write it back to the CPSR register */
+    __asm volatile("MRS r0, cpsr");       /* Read in the CPSR register. */
+    __asm volatile("BIC r0, r0, #0x80");  /* Clear bit 8, (0x80) -- Causes IRQs to be enabled. */
+    __asm volatile("MSR cpsr_c, r0");     /* Write it back to the CPSR register */
 }
 
 
@@ -192,26 +200,29 @@ void irq_disableIrqMode(void)
      * The CSPR can only be accessed using assembler.
      */
     
-    __asm volatile("mrs r0,cpsr");      /* Read in the CPSR register. */
-    __asm volatile("orr r0,r0,#0x80");  /* Set bit 8, (0x80) -- Causes IRQs to be disabled. */
-    __asm volatile("msr cpsr_c, r0");   /* Write it back to the CPSR register. */
+    __asm volatile("MRS r0, cpsr");       /* Read in the CPSR register. */
+    __asm volatile("ORR r0, r0, #0x80");  /* Set bit 8, (0x80) -- Causes IRQs to be disabled. */
+    __asm volatile("MSR cpsr_c, r0");     /* Write it back to the CPSR register. */
 }
 
+
+/* a prototype required for __irq_dummyISR() */
+extern void uart_print(char* str);
 
 /*
  * A dummy ISR servicing routine.
  * 
- * It is supposed to be set as default address of all ISR vectors. If an "unconfigured"
+ * It is supposed to be set as a default address of all ISR vectors. If an "unconfigured"
  * IRQ is triggered, it is still better to be serviced by this dummy function instead of
  * being directed to an arbitrary address with possibly dangerous effects.
  */
 static void __irq_dummyISR(void)
 {
     /* 
-     * An empty function.
-     * 
-     * TODO: maybe it could emit a warning????
+     * An "empty" function. 
+     * As this is a test aplication, it emits a warning to the UART0.
      */
+     uart_print("<WARNING, A DUMMY ISR ROUTINE!!!>\r\n");
 }
 
 
@@ -225,70 +236,69 @@ static void __irq_dummyISR(void)
  * that valid ISR addresses are assigned before the IRQ is enabled!
  * 
  * It supports two modes of IRQ handling, vectored and nonvectored mode. They are implemented 
- * for testing purposes only, in a real application only one mode should be selected and implemented.
+ * for testing purposes only, in a real world application, only one mode should be selected 
+ * and implemented.
  */
 void _pic_IrqHandler(void)
 {
     if ( !__irq_vector_mode )
     {
         /*
-	 * Non vectored implementation, a.k.a. "Simple interrupt flow", described
-	 * on page 2-9 of DDI0181.
-	 * 
-	 * At the moment the IRQs are "prioritarized" by their numbers,
-	 * smaller number is a higher priority.
-	 */
-	
+         * Non vectored implementation, a.k.a. "Simple interrupt flow", described
+         * on page 2-9 of DDI0181.
+         * 
+         * At the moment the IRQs are "prioritarized" by their numbers,
+         * a smaller number means higher priority.
+         */
+
         uint8_t irq;
         
-	/*
-	 * Check each bit of VICIRQSTATUS to determine which sources triggered
-	 * an interrupt.
-	 */
+        /*
+         * Check each bit of VICIRQSTATUS to determine which sources triggered
+         * an interrupt.
+         */
         for ( irq=0; irq<NR_INTERRUPTS; ++irq )
         {
             if ( pPicReg->VICIRQSTATUS & (UL1<<irq) )
             {
-	        /*
-		 * The irq'th bit is set, call its service routine:
-		 */ 
+	            /*
+                 * The irq'th bit is set, call its service routine:
+                 */ 
                 (*__isrNV[irq])();
             }
         }
     }
-#if 0
-    /* vectored mode not supported yet, so it is commented out */
     else
     {
         /*
-	 * Vectored implementation, a.k.a. "Vectored interrupt flow sequence", described
-	 * on page 2-9 of DDI0181.
-	 */
-	
+         * Vectored implementation, a.k.a. "Vectored interrupt flow sequence", described
+         * on page 2-9 of DDI0181.
+         */
+
         IsrPrototype isrAddr;
         
-	/* 
-	 * Reads the Vector Address Register with the ISR address of the currently active interrupt.
+        /* 
+         * Reads the Vector Address Register with the ISR address of the currently active interrupt.
          * Reading this register also indicates to the priority hardware that the interrupt 
          * is being serviced.
-	 */
+         */
         isrAddr = (IsrPrototype) pPicReg->VICVECTADDR;
 	
-	/* Execute the routine at the vector address */
+        /* Execute the routine at the vector address */
         (*isrAddr)();
         
         /* 
-	 * Writes an arbitrary value to the Vector Address Register. This indicates to the
+         * Writes an arbitrary value to the Vector Address Register. This indicates to the
          * priority hardware that the interrupt has been serviced. 
-	 */
+         */
         pPicReg->VICVECTADDR = 0xFFFFFFFF;
     }
-#endif
 }
 
 
 /**
  * Register an interrupt routine service (ISR) for the specified IRQ request.
+ * It is applicable for non-vectored IRQ handling only!
  * 
  * Nothing is done if either irq (equal or greater than 32) or addr (equal to NULL)
  * is invalid.
@@ -323,19 +333,16 @@ void pic_init(void)
     /* Disable all interrupt request lines: */
     pPicReg->VICINTENCLEAR = 0xFFFFFFFF;
     
-    /* Clear all software generated interrupt: */
+    /* Clear all software generated interrupts: */
     pPicReg->VICSOFTINTCLEAR = 0xFFFFFFFF;
     
     /* Reset the default vector address: */
-    pPicReg->VICDEFVECTADDR = 0x00000000;
+    pPicReg->VICDEFVECTADDR = (uint32_t) __irq_dummyISR;;
     
     /* for each vector: */
     for ( i=0; i<NR_VECTORS; ++i )
     {
-        /* clear its ISR address */
-        pPicReg->VICVECTADDRn[i] = (uint32_t) __irq_dummyISR;
-        /* and clear its control register */
-        pPicReg->VICVECTCNTLn[i] = 0x00000000;
+        __irqVect[i] = -1;
     }
     
     /* clear all nonvectored ISR addresses: */
@@ -344,7 +351,7 @@ void pic_init(void)
         __isrNV[i] = __irq_dummyISR;
     }
     
-    /* set to non vectored mode (currently the only supported one) */
+    /* set IRQ handling to non vectored mode */
     __irq_vector_mode = 0;
 }
 
@@ -382,15 +389,15 @@ void pic_disableInterrupt(uint8_t irq)
     if ( irq < NR_INTERRUPTS )
     {
         /* 
-	 * VICINTENCLEAR is a write only register and any ateempt of reading it
-	 * will result in a crash. For that reason, operators as |=, &=, etc.
-	 * are not permitted and only direct setting of it (using operator =)
-	 * is possible. This is not a problem anyway as only 1-bits disable their
-	 * correspondent IRQs while 0-bits do not affect their corresponding
-	 * interrupt lines.
-	 * 
-	 * For more details, see description of VICINTENCLEAR on page 3-7 of DDI0181.
-	 */
+         * VICINTENCLEAR is a write only register and any attempt of reading it
+         * will result in a crash. For that reason, operators as |=, &=, etc.
+         * are not permitted and only direct setting of it (using operator =)
+         * is possible. This is not a problem anyway as only 1-bits disable their
+         * corresponding IRQs while 0-bits do not affect their corresponding
+         * interrupt lines.
+         * 
+         * For more details, see description of VICINTENCLEAR on page 3-7 of DDI0181.
+         */
         pPicReg->VICINTENCLEAR = ( UL1 << irq );
     }
 }
@@ -420,21 +427,14 @@ void pic_disableAllInterrupts(void)
  */
 int8_t pic_isInterruptEnabled(uint8_t irq)
 {
-   /* See description of VICINTENCLEAR, page 3-7 of DDI0181: */
-   
-   if ( irq<NR_INTERRUPTS && 
-        ( pPicReg->VICINTENABLE & (UL1<<irq) ) 
-      )
-   {
-       return 1;
-   }
-   
-   return 0;
+    /* See description of VICINTENCLEAR, page 3-7 of DDI0181: */
+
+    return ( irq<NR_INTERRUPTS && (pPicReg->VICINTENABLE & (UL1<<irq)) ? 1 : 0 );
 }
 
 
 /**
- * What type (IRQ or FIQ) is the requested interrupt?
+ * What type (IRQ or FIQ) is the requested interrupt of?
  *
  * 0 is returned if 'irq' is invalid, i.e. equal or greater than 32.
  *
@@ -472,7 +472,7 @@ void pic_setInterruptType(uint8_t irq, int8_t toIrq)
          * Only the corresponding bit must be modified, all other bits must remain unmodified.
          * For that reason, appropriate bitwise operators are applied.
          *
-         * The interrupts type is set via VICINTSELECT. See description
+         * The interrupt's type is set via VICINTSELECT. See description
          * of the register at page 3-7 of DDI0181.
          */
         if ( toIrq )
@@ -488,44 +488,20 @@ void pic_setInterruptType(uint8_t irq, int8_t toIrq)
     }
 }
 
-/* 
- * These functions do not make any sense until vectored mode is supported.
- * Till then they are commented out.
- */
-#if 0
-/**
- * Reads the Vector Address Register with the ISR address of the currently active interrupt.
- * Reading this register also indicates to the priority hardware that the interrupt 
- * is being serviced.
- *
- * @return ISR address od the currently active interrupt
- */
-IsrPrototype pic_getVectorAddr(void)
-{
-    return (IsrPrototype) pPicReg->VICVECTADDR;
-}
-
 
 /**
- * Writes an arbitrary value to the Vector Address Register. This indicates to the
- * priority hardware that the interrupt has been serviced. 
+ * Assigns the default vector address (VICDEFVECTADDR).
  *
- * @return ISR address od the currently active interrupt
- */
-void pic_writeVectAddr(void)
-{
-    pPicReg->VICVECTADDR = 0xFFFFFFFF;
-}
-
-
-/**
- * Assigns default vector address.
- *
+ * Nothing is done, if 'addr' is invalid, i.e. NULL
+ * 
  * @param addr - address od the default ISR
  */ 
 void pic_setDefaultVectorAddr(IsrPrototype addr)
 {
-    pPicReg->VICDEFVECTADDR = (uint32_t) addr;
+    if ( NULL != addr )
+    {
+        pPicReg->VICDEFVECTADDR = (uint32_t) addr;
+    }
 }
 
 
@@ -542,7 +518,7 @@ void pic_setDefaultVectorAddr(IsrPrototype addr)
  * @param irq - interrupt number (must be smaller than 32)
  * @param addr - address of the ISR
  *
- * @return interrupt's vector slot (0 to 15) or -1 if no slot available
+ * @return interrupt's vector slot (0 to 15) or -1 if no slot is available
  */
 int8_t pic_registerVectorIrq(uint8_t irq, IsrPrototype addr)
 {
@@ -558,19 +534,21 @@ int8_t pic_registerVectorIrq(uint8_t irq, IsrPrototype addr)
     /* Find either a slot with the 'irq' or the first empty slot: */
     for ( empty=-1, cntr=0; cntr<NR_VECTORS; ++cntr )
     {
-        /* strip the enable bit and reserved bits from the VICVECTCNTLn: */
-        uint8_t currentIrq = (uint8_t) (pPicReg->VICVECTCNTLn[cntr] & BM_5BITS);
-        if ( currentIrq==irq )
+        if ( __irqVect[cntr] < 0 )
         {
-            /* found an occurrence of irq, discontinue the loop: */
-            break;  /* out of for */
+            if ( empty<0 )
+            {
+                empty = (int8_t) cntr;
+            }
+            
+            continue;  /* for cntr */
         }
-        if (empty<0 && 0==currentIrq)
+        
+        if ( irq == __irqVect[cntr] )
         {
-	    /* TODO can be a watcdog (IRQ0)!!! */
-            /* mark only the first empty slot found */
-            empty = cntr;
+            break;  /* out of for cntr */
         }
+
     } /* for cntr */
     
     if ( cntr >= NR_VECTORS )
@@ -582,13 +560,16 @@ int8_t pic_registerVectorIrq(uint8_t irq, IsrPrototype addr)
             return -1;
         }
         
-        cntr = empty;
+        cntr = (uint8_t) empty;
     }
+    
+    /* Enter 'irq' into the table: */
+    __irqVect[cntr] = irq;
     
     /* Assign the ISR's address: */
     pPicReg->VICVECTADDRn[cntr] = (uint32_t) addr;
-    /* and assign the request line and enable the interrupt: */
-    pPicReg->VICVECTCNTLn[cntr] = irq + BM_6TH_BIT;
+    /* Assign the request line and enable the IRQ: */
+    pPicReg->VICVECTCNTLn[cntr] = irq | BM_VECT_ENABLE_BIT;
     
     return cntr;
 }
@@ -613,18 +594,26 @@ void pic_unregisterVectorIrq(uint8_t irq)
     
     for ( i=0; i<NR_VECTORS; ++i )
     {
-        if ( irq != (pPicReg->VICVECTCNTLn[i] & BM_5BITS) )
+        if ( irq != __irqVect[i] )
         {
-            /* This slot not configured for the requested irq, skip it */
+            /* This slot is not configured for the requested irq, skip it */
             continue;  /* for i */
         }
-        
+
         /* 
          * If this point is reached, the slot is configured for the irq.
-         * Set its VICVECTCNTLn and VICVECTADDRn to 0.         
+         * Reset its VICVECTCNTLn and VICVECTADDRn.         
          */
         pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        pPicReg->VICVECTADDRn[i] = 0x00000000;
+        pPicReg->VICVECTADDRn[i] = (uint32_t) __irq_dummyISR;
+        
+        /* And delete the irq from the table */
+        __irqVect[i] = -1;
+        
+        /* 
+         * There is no break and all 16 slots are checked just in case the same IRQ has been
+         * registered several times (should not occur but it's still better to handle it.)
+         */
     }  /* for i */
 }
 
@@ -651,14 +640,14 @@ int8_t pic_enableVectorIrq(uint8_t irq)
     /* Find a slot with the requested irq: */
     for ( cntr=0; cntr<NR_VECTORS; ++cntr )
     {
-        if ( irq == (uint8_t) (pPicReg->VICVECTCNTLn[cntr] & BM_5BITS) )
+        if ( irq == __irqVect[cntr] )
         {
             /* found, set its ENABLE bit in VICVECTCNTLn: */
-            pPicReg->VICVECTCNTLn[cntr] |= BM_6TH_BIT;
+            pPicReg->VICVECTCNTLn[cntr] |= BM_VECT_ENABLE_BIT;
             /* No need to search further: */
             break;  /* out of for cntr */
         }
-    } /* for cntr */
+    }  /* for cntr */
     
     return ( cntr<NR_VECTORS ? cntr : -1 );
 }
@@ -683,10 +672,10 @@ void pic_disableVectorIrq(uint8_t irq)
     
     for ( cntr=0; cntr<NR_VECTORS; ++cntr )
     {
-        if ( irq == (pPicReg->VICVECTCNTLn[cntr] & BM_5BITS) )
+        if ( irq == __irqVect[cntr] )
         {
             /* found an occurrence of irq, unset its ENABLE bit in VICVECTCNTLn: */
-            pPicReg->VICVECTCNTLn[cntr] &= ~BM_6TH_BIT;
+            pPicReg->VICVECTCNTLn[cntr] &= ~BM_VECT_ENABLE_BIT;
             /* 
              * Continue the loop and disable potential other slots
              * with the same irq (should not occur in normal situatuons but
@@ -708,10 +697,25 @@ void pic_unregisterAllVectorIrqs(void)
     for ( i=0; i<NR_VECTORS; ++i )
     {
         pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        pPicReg->VICVECTADDRn[i] = 0x00000000;
+        pPicReg->VICVECTADDRn[i] = (uint32_t) __irq_dummyISR;
+        __irqVect[i] = -1;
     }
 }
-#endif
+
+
+/**
+ * Disables all vectored interrupts
+ */
+void pic_disableAllVectorIrqs(void)
+{
+    uint8_t i;
+    
+    /* Whatever VICVECTCNTLn is set to, unset its ENABLE bit to 0 */
+    for ( i=0; i<NR_VECTORS; ++i )
+    {
+        pPicReg->VICVECTCNTLn[i] &= ~BM_VECT_ENABLE_BIT;
+    }
+}
 
 /**
  * Triggers the software generated interrupt (IRQ1).
@@ -740,7 +744,7 @@ void pic_clearSoftwareInterrupt(void)
      * IRQ1 is reserved for a pure software interrupt. See pp 4.47 and 4-48 of DUI0225D.
      * 
      * The register is write only and should not be read. Only 1-bits clear
-     * their corresponding IRQs, 0-bits have no offect on "their" IRQs.
+     * their corresponding IRQs, 0-bits have no effect on "their" IRQs.
      */
     pPicReg->VICSOFTINTCLEAR = (UL1 << SW_PIC_IRQ);
 }

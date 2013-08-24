@@ -1,0 +1,9 @@
+# Object files:
+*.o
+
+# Image files:
+*.bin
+*.elf
+
+# Backup files of some editors:
+*~

@@ -37,15 +37,11 @@ limitations under the License.
 #include <stdint.h>
 #include <stddef.h>
 
+#include "base_address.h"
+
 /* For public definitions of types: */
 #include "interrupt.h"
 
-
-/* Base addresses of the PIC controller (see page 4-44 of the DUI0225D): */
-#define PIC_BASE      0x10140000
-
-/* Base addresses of the SIC controller (see page 4-44 of the DUI0225D): */
-#define SIC_BASE      0x10003000
 
 /*
  * 32-bit registers of the Primary Interrupt Controller,

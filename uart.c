@@ -32,10 +32,7 @@ limitations under the License.
 #include <stdint.h>
 #include <stddef.h>
 
-/* Base addresses of UART registers (see page 4-68 of the DUI0225D): */
-#define UART0_BASE      0x101F1000
-#define UART1_BASE      0x101F2000
-#define UART2_BASE      0x101F3000 
+#include "base_address.h"
 
 
 /*
@@ -76,6 +73,7 @@ typedef struct _ARM926EJS_UART_REGS
 
 static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_BASE);
 
+
 /*
  * Outputs a character to the UART0. This short function is used by other functions,
  * that is why it is implemented as an inline function.
@@ -111,8 +109,9 @@ static inline void __printCh(char ch)
     *( (char*) &(pReg->UARTDR) ) = ch;
 }
 
+
 /**
- * Outputs a character to UART0
+ * Outputs a character to UART 0.
  * 
  * @param ch - character to be sent to the UART
  */ 
@@ -122,6 +121,14 @@ void uart_printChar(char ch)
     __printCh(ch);
 }
 
+
+/**
+ * Outputs a string to UART 0.
+ *
+ * "<NULL>" is transmitted if 'str' is equal to NULL. 
+ *
+ * @param str - string to be sent to the UART, must be '\0' terminated.
+ */
 void uart_print(const char* str)
 {
     /* 

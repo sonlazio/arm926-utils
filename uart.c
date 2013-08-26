@@ -18,7 +18,7 @@ limitations under the License.
  * @file
  * 
  * Implementation of the board's UART functionality.
- * Currently only UART0 is supported.
+ * Currently only UART 0 is supported.
  * 
  * More info about the board and the UART controller:
  * - Versatile Application Baseboard for ARM926EJ-S, HBI 0118 (DUI0225D):
@@ -33,6 +33,96 @@ limitations under the License.
 #include <stddef.h>
 
 #include "base_address.h"
+
+
+/*
+ * Bit masks for the Control Register (UARTCR).
+ * 
+ * For description of each control register's bit, see page 3-15 of DDI0183:
+ * 
+ *   0: UARTEN (enable bit):  0 disabled; 1 enabled
+ *   1: SIREN
+ *   2: SIRLP (IrDA SIR low power mode)
+ * 3-6: reserved (do not modify)
+ *   7: LBE (loopback enabled)
+ *   8: TXE (transmit enable): 0 disabled; 1 enabled
+ *   9: RXE (receive enable): 0 disabled; 1 enabled
+ *  10: DTR (data transmit ready)
+ *  11: RTS (request to send)
+ *  12: Out1
+ *  13: Out2
+ *  14: RTSEn (RTS hardware flow control enable)
+ *  15: CTSEn (CTS hardware flow control enable)
+ *  16-31: reserved (do not modify)
+ */
+#define CTL_UARTEN     0x00000001
+#define CTL_SIREN      0x00000002
+#define CTL_SIRLP      0x00000004
+#define CTL_LBE        0x00000080
+#define CTL_TXE        0x00000100
+#define CTL_RXE        0x00000200
+#define CTL_DTR        0x00000400
+#define CTL_RTS        0x00000800
+#define CTL_OUT1       0x00001000
+#define CTL_OUT2       0x00002000
+#define CTL_RTSEn      0x00004000
+#define CTL_CTSEn      0x00008000
+
+
+/*
+ * Bit masks for the IMSC (Interrupt Mask Set/Clear) register.
+ *
+ * For description of each IMSC's bit, see page 3-18 of DDI0183:
+ *    0: nUARTRI modem interrupt mask
+ *    1: nUARTCTS modem interrupt mask
+ *    2: nUARTDCD modem interrupt mask
+ *    3: nUARTDSR modem interrupt mask
+ *    4: Receive interrupt mask
+ *    5: Transmit interrupt mask
+ *    6: Receive timeout interrupt mask
+ *    7: Framing error interrupt mask
+ *    8: Parity error interrupt mask
+ *    9: Break error interrupt mask
+ *   10: Overrun error interrupt mask
+ * 11-31: reserved, do not modify
+ */
+#define INT_RIMIM      0x00000001
+#define INT_CTSMIM     0x00000002
+#define INT_DCDMIM     0x00000004
+#define INT_DSRMIM     0x00000008
+#define INT_RXIM       0x00000010
+#define INT_TXIM       0x00000020
+#define INT_RTIM       0x00000040
+#define INT_FEIM       0x00000080
+#define INT_PEIM       0x00000100
+#define INT_BEIM       0x00000200
+#define INT_OEIM       0x00000400
+
+
+/* 
+ * Bitmasks for the Flag Register.
+ *
+ * For description of each flag register's bit, see page 3-8 od the DDI0183.
+ *   0: Clear to send. This bit is the complement of the UART clear to send (nUARTCTS) modem status input.
+ *   1: Data set ready. This bit is the complement of the UART data set ready (nUARTDSR) modem status input.
+ *   2: Data carrier detect. This bit is the complement of the UART data carrier detect (nUARTDCD) modem status input.
+ *   3: UART busy.
+ *   4: Receive FIFO empty. The meaning of this bit depends on the state of the FEN bit in the UARTLCR_H register.
+ *   5: Transmit FIFO full. The meaning of this bit depends on the state of the FEN bit in the UARTLCR_H register.
+ *   6: Receive FIFO full. The meaning of this bit depends on the state of the FEN bit in the UARTLCR_H register.
+ *   7: Transmit FIFO empty. The meaning of this bit depends on the state of the FEN bit in the UARTLCR_H register.
+ *   8: Ring indicator. This bit is the complement of the UART ring indicator (nUARTRI) modem status input.
+ * 9-31: reserved, do not modify
+ */
+#define FR_CTS         0x00000001
+#define FR_DSR         0x00000002
+#define FR_DCD         0x00000004
+#define FR_BUSY        0x00000008
+#define FR_RXFE        0x00000010
+#define FR_TXFF        0x00000020
+#define FR_RXFF        0x00000040
+#define FR_TXFE        0x00000080
+#define FR_RI          0x00000100
 
 
 /*
@@ -68,10 +158,61 @@ typedef struct _ARM926EJS_UART_REGS
 /* Shared UART register: */
 #define UARTECR       UARTRSR
 
-/* Bitmask for the Flag Register's TXFF bit (transmit FIFO full) */
-#define FR_TXFF       0x00000020
-
 static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_BASE);
+
+
+/**
+ * Initializes the UART controller.
+ * It is enabled for transmission (Tx) only, receive must be enabled separately.
+ * By default all IRQ sources are disabled (masked out).
+ */
+void uart_init(void)
+{
+    /*
+     * Registers' reserved bits should not be modified.
+     * For that reason, the registers are set in two steps:
+     * - the appropriate bit masks of 1-bits are bitwise or'ed to the register
+     * - zero complements of the appropriate bit masks of 0-bits are bitwise and'ed to the register
+     */
+
+
+    /*
+     * Whatever the current state, as suggested on page 3-16 of the DDI0183, the UART
+     * should be disabled first:
+     */
+    pReg->UARTCR &= ~CTL_UARTEN;
+    
+    /* Set Control Register's TXE to 1: */
+    pReg->UARTCR |= CTL_TXE;
+    
+    /* 
+     * Set all other bits (except UARTEN) of the Control Register to 0:
+     * - SIREN
+     * - SIRLP
+     * - LBE
+     * - RXE
+     * - DTR
+     * - RTS
+     * - Out1
+     * - Out2
+     * - RTSEn
+     * - CTSEn
+     */
+     pReg->UARTCR &= ( ~CTL_SIREN & ~CTL_SIRLP & ~CTL_LBE & ~CTL_RXE & ~CTL_DTR );
+     pReg->UARTCR &= ( ~CTL_RTS & ~CTL_OUT1 & ~CTL_OUT2 & ~CTL_RTSEn & ~CTL_CTSEn );
+     
+ 
+     /* By default, all interrupts are masked out (i.e. cleared to 0): */
+     pReg->UARTIMSC &= ( ~INT_RIMIM & ~INT_CTSMIM & ~INT_DCDMIM & ~INT_DSRMIM & ~INT_RXIM & ~INT_TXIM );
+     pReg->UARTIMSC &= ( ~INT_RTIM & ~INT_FEIM & ~INT_PEIM & ~INT_BEIM & ~INT_OEIM );
+     
+     /* TODO: line control... */
+     
+     /* Finally enable the UART: */
+     pReg->UARTCR |= CTL_UARTEN;
+     
+     /* reserved bits remained unmodified */
+}
 
 
 /*
@@ -91,7 +232,7 @@ static inline void __printCh(char ch)
    /* 
     * Poll the Flag Register's TXFF bit until the Transmit FIFO is not full.
     * When the TXFF bit is set to 1, the controller's internal Transmit FIFO is full.
-    * In this case, wait until a some "waiting" characters have been transmitted and
+    * In this case, wait until some "waiting" characters have been transmitted and
     * the TXFF is set to 0, indicating the Transmit FIFO can accept additional characters.
     */
    while ( pReg->UARTFR & FR_TXFF );
@@ -144,8 +285,104 @@ void uart_print(const char* str)
     /*
      * Just print each character until a zero terminator is detected
      */
-    for ( ; '\0' != *cp; cp++ )
+    for ( ; '\0' != *cp; ++cp )
     {
         __printCh(*cp);
     }
+}
+
+
+/**
+ * Enables the UART controller.
+ */
+void uart_enableUart(void)
+{
+    pReg->UARTCR |= CTL_UARTEN;
+}
+
+
+/**
+ * Disables the UART controller.
+ */
+void uart_disableUart(void)
+{
+    pReg->UARTCR &= ~CTL_UARTEN;
+}
+
+
+/*
+ * Sets or clears a bit of the Control Register. This function is short and
+ * used by other functions, this is why it is implemented as an inline function.
+ *
+ * @param set - if nonzero, set bitmask's bit(s) to 1, if zero, clear them to 0
+ * @param bitmask - bitmask of 1-bits that will be set or cleared
+ */
+static inline void __setCrBit(int8_t set, uint32_t bitmask)
+{
+    /* Store UART's enable status (UARTEN) */
+    const uint32_t enabled = pReg->UARTCR & CTL_UARTEN;
+    
+    /* 
+     * As suggested on page 3-16 of the DDI0183, the UART should be disabled
+     * prior to any modificiation of the Control Register
+     */
+    pReg->UARTCR &= ~CTL_UARTEN;
+    
+    /* Depending on 'set'... */
+    if (set)
+    {
+        /* Set bitmask's bits to 1 using bitwise OR */
+        pReg->UARTCR |= bitmask;
+    }
+    else
+    {
+        /* Clear bitmask's bits to 0 using bitwise AND */
+        pReg->UARTCR &= ~bitmask;
+    }
+    
+    /* Reenable the UART if it was been enabled before */
+    if (enabled)
+    {
+        pReg->UARTCR |= CTL_UARTEN;
+    }
+}
+
+
+/**
+ * Enables UART's transmit (Tx) section.
+ * UART's general enable status (UARTEN) remains unmodified.
+ */
+void uart_enableTx(void)
+{
+    __setCrBit(1, CTL_TXE);
+}
+
+
+/**
+ * Disables UART's transmit (Tx) section. 
+ * UART's general enable status (UARTEN) remains unmodified.
+ */
+void uart_disableTx(void)
+{
+    __setCrBit(0, CTL_TXE);
+}
+
+
+/**
+ * Enables UART's transmit (Rx) section.
+ * UART's general enable status (UARTEN) remains unmodified. 
+ */
+void uart_enableRx(void)
+{
+    __setCrBit(1, CTL_RXE);
+}
+
+
+/**
+ * Disables UART's transmit (Rx) section.
+ * UART's general enable status (UARTEN) remains unmodified.
+ */
+void uart_disableRx(void)
+{
+    __setCrBit(0, CTL_RXE);
 }

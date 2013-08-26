@@ -374,6 +374,8 @@ static void timerVectIrqTest(void)
  */ 
 void start(void)
 {
+    uart_init();
+    
     uart_print("* * * T E S T   S T A R T * * *\r\n");
     
     timersEnabledTest();

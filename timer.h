@@ -51,6 +51,4 @@ uint32_t timer_getValue(uint8_t nr);
 
 const volatile uint32_t* timer_getValueAddr(uint8_t nr);
 
-int8_t timer_getIRQ(uint8_t nr);
-
 #endif  /* _TIMER_H_*/

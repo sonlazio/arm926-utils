@@ -109,7 +109,7 @@ void timer_init(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -156,7 +156,7 @@ void timer_start(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -177,7 +177,7 @@ void timer_stop(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -203,7 +203,7 @@ int8_t timer_isEnabled(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return 0;
     }
@@ -224,7 +224,7 @@ void timer_enableInterrupt(uint8_t nr)
 {
  
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -245,7 +245,7 @@ void timer_disableInterrupt(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -266,7 +266,7 @@ void timer_clearInterrupt(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -297,7 +297,7 @@ void timer_setLoad(uint8_t nr, uint32_t value)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return;
     }
@@ -320,7 +320,7 @@ uint32_t timer_getValue(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return 0UL;
     }
@@ -332,7 +332,7 @@ uint32_t timer_getValue(uint8_t nr)
 /**
  * Address of the specified timer's Value Register. It might be suitable
  * for applications that poll this register frequently and wish to avoid 
- * the overhead due to calling getTimerValue() each time.
+ * the overhead due to calling timer_getValue() each time.
  * 
  * NULL is returned if 'nr' is invalid (4 or greater).
  * 
@@ -346,48 +346,10 @@ const volatile uint32_t* timer_getValueAddr(uint8_t nr)
 {
 
     /* sanity check: */
-    if ( nr>N_TIMERS )
+    if ( nr >= N_TIMERS )
     {
         return NULL;
     }
     
     return (const volatile uint32_t*) &(timerReg[nr]->VALUE);
 }
-
-
-/**
- * A convenience function that returns the primary controller's IRQ number of
- * the specified timer when its counter reaches 0 (provided that
- * triggering of interrupts is enabled).
- * 
- * According to page 4-67 of DUI0225D, timers 0 and 1 trigger IRQ4,
- * timers 2 and 3 trigger IRQ5.
- * 
- * If 'nr' is invalid (4 or greater), -1 is returned.
- * 
- * @param nr - number of the timer (between 0 and 3)
- * 
- * @return IRQ number on the primary interrupt controller for the specified timer
- */
-int8_t timer_getIRQ(uint8_t nr)
-{
-    int8_t retVal;
-    
-    switch (nr)
-    {
-        case 0:
-        case 1:
-            retVal = 4;
-            break;
-
-        case 2:
-        case 3:
-            retVal = 5;
-            break;
-
-        default:
-            retVal = -1;
-    }
-    
-    return retVal;
-} 

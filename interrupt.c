@@ -41,7 +41,8 @@ limitations under the License.
 
 /* For public definitions of types: */
 #include "interrupt.h"
-
+/* For IRQ of software triggered interrupts: */
+#include "peripheral_irqs.h"
 
 /*
  * 32-bit registers of the Primary Interrupt Controller,
@@ -118,8 +119,6 @@ typedef struct _ARM926EJS_SIC_REGS
 #define NR_VECTORS      16
 #define NR_INTERRUPTS   32
 
-/* Software IRQ number, see pp. 4-47 and 4-48 of DUI0225D */
-#define SW_PIC_IRQ     1
 
 static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_BASE);
 /* static volatile ARM926EJS_SIC_REGS* const pSicReg = (ARM926EJS_SIC_REGS*) (SIC_BASE); */
@@ -724,7 +723,7 @@ void pic_setSoftwareInterrupt(void)
      *
      * IRQ1 is reserved for a pure software interrupt. See pp 4.47 and 4-48 of DUI0225D.
      */
-    pPicReg->VICSOFTINT |= (UL1 << SW_PIC_IRQ);
+    pPicReg->VICSOFTINT |= (UL1 << IRQ_SOFTWARE);
 }
 
 
@@ -742,5 +741,5 @@ void pic_clearSoftwareInterrupt(void)
      * The register is write only and should not be read. Only 1-bits clear
      * their corresponding IRQs, 0-bits have no effect on "their" IRQs.
      */
-    pPicReg->VICSOFTINTCLEAR = (UL1 << SW_PIC_IRQ);
+    pPicReg->VICSOFTINTCLEAR = (UL1 << IRQ_SOFTWARE);
 }

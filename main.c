@@ -26,6 +26,7 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
+#include "peripheral_irqs.h"
 #include "interrupt.h"
 #include "uart.h"
 #include "timer.h"
@@ -275,13 +276,13 @@ static void timerNvIrqTest(void)
     pic_init();
     
     /* Assign the ISR routine for the IRQ4, triggered by timers 0 and 1 */
-    pic_registerNonVectoredIrq(4, timer0ISR);
+    pic_registerNonVectoredIrq(IRQ_TIMER0, timer0ISR);
     
     /* Enable IRQ mode */
     irq_enableIrqMode();
     
     /* Enable IRQ4 */
-    pic_enableInterrupt(4);
+    pic_enableInterrupt(IRQ_TIMER0);
     
     /* Initialize the timer 0 to triggger IRQ4 every 1000000 micro seconds, i.e. every 1 s */
     timer_init(0);
@@ -299,7 +300,7 @@ static void timerNvIrqTest(void)
     __tick_cntr = 0;
     timer_disableInterrupt(0);
     timer_stop(0);
-    pic_disableInterrupt(4);
+    pic_disableInterrupt(IRQ_TIMER0);
     
     /* Disable IRQ mode */
     irq_disableIrqMode();
@@ -328,13 +329,13 @@ static void timerVectIrqTest(void)
     _pic_set_irq_vector_mode(1);
     
     /* Assign the ISR routine for the IRQ 4, triggered by timers 0 and 1 */
-    pic_registerVectorIrq(4, timer0ISR);
+    pic_registerVectorIrq(IRQ_TIMER0, timer0ISR);
     
     /* Enable IRQ mode */
     irq_enableIrqMode();
     
     /* Enable IRQ4 */
-    pic_enableInterrupt(4);
+    pic_enableInterrupt(IRQ_TIMER0);
     
     /* Initialize the timer 0 to triggger IRQ 4 every 1000000 micro seconds, i.e. every 1 s */
     timer_init(0);
@@ -353,7 +354,7 @@ static void timerVectIrqTest(void)
     __tick_cntr = 0;
     timer_disableInterrupt(0);
     timer_stop(0);
-    pic_disableInterrupt(4);
+    pic_disableInterrupt(IRQ_TIMER0);
     
     /* Disable IRQ mode */
     irq_disableIrqMode();

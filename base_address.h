@@ -24,9 +24,16 @@ limitations under the License.
  * Versatile Application Baseboard for ARM926EJ-S, HBI 0118 (DUI0225D):
  * http://infocenter.arm.com/help/topic/com.arm.doc.dui0225d/DUI0225D_versatile_application_baseboard_arm926ej_s_ug.pdf
  *
+ * The header should be included into each source file that implenets peripherals' drivers.
  * @author Jernej Kovacic
  */
- 
+
+
+/*
+ * At the moment, this header file is maintained  manually.
+ * Ideally, one day it will be generated automaticaly by scripts that
+ * read data from BSP (board support package) databases. 
+ */
 
 #ifndef _BASE_ADDRESS_H_
 #define _BASE_ADDRESS_H_

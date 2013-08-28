@@ -22,6 +22,7 @@ CXX = $(TOOLCHAIN)g++
 AS = $(TOOLCHAIN)as
 LD = $(TOOLCHAIN)ld
 OBJCPY = $(TOOLCHAIN)objcopy
+AR = $(TOOLCHAIN)ar
 
 CPUFLAG = -mcpu=arm926ej-s
 
@@ -32,8 +33,8 @@ rebuild : clean all
 image.bin : image.elf
 	$(OBJCPY) -O binary image.elf image.bin
 
-image.elf : vectors.o exception.o interrupt.o uart.o timer.o main.o linker.ld
-	$(LD) -T linker.ld exception.o interrupt.o timer.o uart.o main.o -o image.elf
+image.elf : vectors.o exception.o interrupt.o uart.o timer.o rtc.o main.o linker.ld
+	$(LD) -T linker.ld exception.o interrupt.o timer.o uart.o rtc.o main.o -o image.elf
 
 interrupt.o : interrupt.c
 	$(CC) -c $(CPUFLAG) interrupt.c -o interrupt.o
@@ -43,6 +44,9 @@ uart.o : uart.c
 
 timer.o : timer.c
 	$(CC) -c $(CPUFLAG) timer.c -o timer.o
+
+rtc.o : rtc.c
+	$(CC) -c $(CPUFLAG) rtc.c -o rtc.o
 
 main.o : main.c
 	$(CC) -c $(CPUFLAG) main.c -o main.o

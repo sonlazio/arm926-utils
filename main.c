@@ -30,6 +30,7 @@ limitations under the License.
 #include "interrupt.h"
 #include "uart.h"
 #include "timer.h"
+#include "rtc.h"
 
 /* A convenience buffer for strings */
 #define BUFLEN       25
@@ -53,7 +54,7 @@ static void ul2hex(char* buf, uint32_t val)
     buf[1] = 'x';
     
     /* the output will not be longer than 8 hex "digits" */
-    for ( i=0; i<8; i++ )
+    for ( i=0; i<8; ++i )
     {
         /* The last 4 bytes of val, i.e. val % 16 */
         digit = (uint8_t) (val & 0x0F);
@@ -92,7 +93,7 @@ static void ul2dec(char* buf, uint32_t val)
     uint8_t digit;
     
     /* fill the buffer with spaces*/
-    for ( i=0; i<19; i++ )
+    for ( i=0; i<19; ++i )
     {
         buf[i] = ' ';
     }
@@ -100,7 +101,7 @@ static void ul2dec(char* buf, uint32_t val)
     buf[19] = '\0';
     
     /* No more than 19 digits will be appended to buffer */
-    for ( i=18; i>0; i-- )
+    for ( i=18; i>0; --i )
     {
         /* Ekstract the least significant digit of val */
         digit = val % 10;
@@ -263,52 +264,6 @@ static void timer0ISR(void)
     timer_clearInterrupt(0);
 }
 
-/*
- * A test function for testing nonvectored IRQ handling from the Timer 0.
- * The timer is prepared, IRQ4 is enabled, when 10 ticks occur, everything
- * is cleaned up.
- */
-static void timerNvIrqTest(void)
-{
-    uart_print("\r\n=Timer non-vectored IRQ test:=\r\n\r\n");
-    
-    /* Initialize the PIC */
-    pic_init();
-    
-    /* Assign the ISR routine for the IRQ4, triggered by timers 0 and 1 */
-    pic_registerNonVectoredIrq(IRQ_TIMER0, timer0ISR);
-    
-    /* Enable IRQ mode */
-    irq_enableIrqMode();
-    
-    /* Enable IRQ4 */
-    pic_enableInterrupt(IRQ_TIMER0);
-    
-    /* Initialize the timer 0 to triggger IRQ4 every 1000000 micro seconds, i.e. every 1 s */
-    timer_init(0);
-    timer_setLoad(0, 1000000);
-    timer_enableInterrupt(0);
-    
-    /* Reset the tick counter and start the timer */
-    __tick_cntr = 0;
-    timer_start(0);
-    
-    /* just wait until IRQ4 is triggered 10 times */
-    while ( __tick_cntr<10 );
-    
-    /* Cleanup. Reset the counter, disable interrupts, stop the Timer... */
-    __tick_cntr = 0;
-    timer_disableInterrupt(0);
-    timer_stop(0);
-    pic_disableInterrupt(IRQ_TIMER0);
-    
-    /* Disable IRQ mode */
-    irq_disableIrqMode();
-    
-    uart_print("\r\n=Timer IRQ non-vectored test completed=\r\n");
-}
-
-
 
 extern void _pic_set_irq_vector_mode(int8_t mode);
 
@@ -366,6 +321,75 @@ static void timerVectIrqTest(void)
 }
 
 
+/*
+ * An ISR routine, invoked when the RTC triggers the IRQ 10
+ */
+static void rtcISR(void)
+{
+    /* Increase the number of "ticks" */
+    __tick_cntr++;
+    
+    /* And acknowledge the interrupt, i.e. clear it in the RTC */
+    rtc_clearInterrupt();
+}
+
+
+/*
+ * A test function for testing nonvectored IRQ handling from the RTC.
+ * The RTC and a timer are prepared, IRQ10 is enabled, when a "tick" occurs
+ * adter 7 seconds and is verified by the timer, everything is cleaned up.
+ */
+static void rtcTest(void)
+{
+    const uint32_t period = 7;   /* in seconds */
+    const uint32_t initTimerVal = 100000000; /* 100,000,000 us = 100 sec. */
+    
+    uart_print("\r\n=RTC test:=\r\n\r\n");
+    
+    /* Init all necessary peripherals */
+    rtc_init();
+    timer_init(3);
+    pic_init();
+    
+    uart_print("Expecting a RTC interrupt in 7 seconds...\r\n");
+    
+    /* Enable necessary controllers: */
+    pic_registerNonVectoredIrq(IRQ_RTC, rtcISR);
+    irq_enableIrqMode();    
+    pic_enableInterrupt(IRQ_RTC);
+    rtc_enableInterrupt();
+    
+    /* Start the RTC */
+    rtc_start();
+    /* Load the timer with an initial value */
+    timer_setLoad(3, initTimerVal);
+    /* Set an "alarm" at "now()" + 7 seconds:*/
+    rtc_setMatch(rtc_getValue()+period);
+    /* Start a timer for verification of the RTC: */
+    timer_start(3);
+    
+    /* Reset the counter of "ticks" */
+    __tick_cntr = 0;
+    
+    /* Wait for the ISR to finish (i.e. update of a counter) */
+    while ( 0 == __tick_cntr );
+    
+    /* Stop the timer (and preserve its value) immediately after the interrupt */
+    timer_stop(3);
+    
+    /* Clean up, disable controllers, etc. */
+    rtc_disableInterrupt();
+    pic_disableInterrupt(IRQ_RTC);
+    irq_disableIrqMode();
+    
+    /* Finally verify that the RTC indeed triggered an IRQ after approx. 7 seconds */
+    ul2dec(strbuf, initTimerVal - timer_getValue(3) );
+    uart_print("RTC interrupt triggered after: ");
+    uart_print(strbuf);
+    uart_print(" micro seconds.\r\n");
+    
+    uart_print("\r\n=RTC test completed=\r\n");
+}
 
 /*
  * Starting point of the application.
@@ -381,7 +405,6 @@ void start(void)
     
     timersEnabledTest();
     timerPollingTest();
-    timerNvIrqTest();
     
     /*
      * W A R N I N G :
@@ -393,6 +416,8 @@ void start(void)
      * - https://github.com/qemu/qemu/commit/14c126baf1c38607c5bd988878de85a06cefd8cf
      */
     timerVectIrqTest();
+    
+    rtcTest();
     
     uart_print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
     

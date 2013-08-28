@@ -124,23 +124,29 @@ static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_B
 /* static volatile ARM926EJS_SIC_REGS* const pSicReg = (ARM926EJS_SIC_REGS*) (SIC_BASE); */
 
 /*
- * A table with addresses of ISR routines for each IRQ request between 0 and 31.
+ * A table with addresses of ISR routines for each IRQ request between 0 and 31,
+ * and pointers to routines' parameters if applicable.
  * The table is used for non vectored interrupt handling only.
  * 
  * A routine address for the given IRQ request ('irq') is simply accessed as
- * __isrNV[irq]. In future, this may be redesigned to support prioritization, additional parameters, etc.
+ * __isrNV[irq]. In future, this may be redesigned to support prioritization, etc.
  * 
- * TODO  parameters of routines as void* param ? 
- * TODO  prioritization parameters for each IRQ?
+ * TODO  prioritization of IRQs?
  */
-static IsrPrototype __isrNV[NR_INTERRUPTS];
+typedef struct _nvIsrHandler
+{
+    pNonVectoredIsrPrototype isr;    /* address of the ISR */
+    void* param;                    /* void* casted pointer to isr's paramter (if applicable) */
+} nvIsrHandler;
+
+static nvIsrHandler __isrNV[NR_INTERRUPTS];
 
 
 /*
  * A table with IRQs serviced by each VICVECTADDRn.
  * If a table's field is negative, its corresponding VICVECTADDRn presumably
  * does not serve any IRQ. In this case, the corresponding VICVECTCNTLn is
- * supposed to be set ot 0 and its VICVECTADDRn should be set ot __irq_dummyISR.
+ * supposed to be set ot 0 and its VICVECTADDRn should be set to __irq_dummyISR.
  */
 static int8_t __irqVect[NR_VECTORS];
 
@@ -205,9 +211,9 @@ void irq_disableIrqMode(void)
 extern void uart_print(char* str);
 
 /*
- * A dummy ISR servicing routine.
+ * A dummy ISR routine for servicing vectored IRQs.
  * 
- * It is supposed to be set as a default address of all ISR vectors. If an "unconfigured"
+ * It is supposed to be set as a default address of all vectored IRQ requests. If an "unconfigured"
  * IRQ is triggered, it is still better to be serviced by this dummy function instead of
  * being directed to an arbitrary address with possibly dangerous effects.
  */
@@ -218,6 +224,22 @@ static void __irq_dummyISR(void)
      * As this is a test aplication, it emits a warning to the UART0.
      */
      uart_print("<WARNING, A DUMMY ISR ROUTINE!!!>\r\n");
+}
+
+
+/*
+ * A dummy ISR routine for servicing nonvectored IRQs.
+ * 
+ * It is supposed to be set as a default address of all nonvectored IRQ requests. If an "unconfigured"
+ * IRQ is triggered, it is still better to be serviced by this dummy function instead of
+ * being directed to an arbitrary address with possibly dangerous effects.
+ * 
+ * @param param - ignored
+ */
+static void __irq_dummyNvISR(void* param)
+{
+   /* typically it should do the same as the function for unspecified vectored IRQs: */
+    __irq_dummyISR();
 }
 
 
@@ -259,7 +281,7 @@ void _pic_IrqHandler(void)
 	            /*
                  * The irq'th bit is set, call its service routine:
                  */ 
-                (*__isrNV[irq])();
+                ( *__isrNV[irq].isr )( __isrNV[irq].param );
             }
         }
     }
@@ -270,14 +292,14 @@ void _pic_IrqHandler(void)
          * on page 2-9 of DDI0181.
          */
 
-        IsrPrototype isrAddr;
+        pVectoredIsrPrototype isrAddr;
         
         /* 
          * Reads the Vector Address Register with the ISR address of the currently active interrupt.
          * Reading this register also indicates to the priority hardware that the interrupt 
          * is being serviced.
          */
-        isrAddr = (IsrPrototype) pPicReg->VICVECTADDR;
+        isrAddr = (pVectoredIsrPrototype) pPicReg->VICVECTADDR;
 	
         /* Execute the routine at the vector address */
         (*isrAddr)();
@@ -298,15 +320,19 @@ void _pic_IrqHandler(void)
  * Nothing is done if either irq (equal or greater than 32) or addr (equal to NULL)
  * is invalid.
  * 
+ * @note 'param' should not point to data in stack unless you really know what you are doing!
+ * 
  * @param irq - IRQ request number (must be smaller than 32)
  * @param addr - address of the ISR that services the interrupt 'irq'
+ * @param param - void* casted pointer to function's parameter(s) (may be NULL if not applicable)
  */ 
-void pic_registerNonVectoredIrq(uint8_t irq, IsrPrototype addr)
+void pic_registerNonVectoredIrq(uint8_t irq, pNonVectoredIsrPrototype addr, void* param)
 {
     if (irq<NR_INTERRUPTS && NULL!=addr)
     {
         /* at the current implementation just put addr to the appropriate field of the table */
-        __isrNV[irq] = addr;
+        __isrNV[irq].isr = addr;
+        __isrNV[irq].param = param;
     }
 }
 
@@ -332,18 +358,24 @@ void pic_init(void)
     pPicReg->VICSOFTINTCLEAR = 0xFFFFFFFF;
     
     /* Reset the default vector address: */
-    pPicReg->VICDEFVECTADDR = (uint32_t) __irq_dummyISR;;
+    pPicReg->VICDEFVECTADDR = (uint32_t) &__irq_dummyISR;;
     
     /* for each vector: */
     for ( i=0; i<NR_VECTORS; ++i )
     {
+        /* clear its entry in the table */
         __irqVect[i] = -1;
+        /* clear its control register */
+        pPicReg->VICVECTCNTLn[i] = 0x00000000;
+        /* and clear its ISR address to a dummy function */
+        pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
     }
     
     /* clear all nonvectored ISR addresses: */
     for ( i=0; i<NR_INTERRUPTS; ++i )
     {
-        __isrNV[i] = __irq_dummyISR;
+        __isrNV[i].isr = &__irq_dummyNvISR;
+        __isrNV[i].param = NULL;
     }
     
     /* set IRQ handling to non vectored mode */
@@ -491,7 +523,7 @@ void pic_setInterruptType(uint8_t irq, int8_t toIrq)
  * 
  * @param addr - address od the default ISR
  */ 
-void pic_setDefaultVectorAddr(IsrPrototype addr)
+void pic_setDefaultVectorAddr(pVectoredIsrPrototype addr)
 {
     if ( NULL != addr )
     {
@@ -515,7 +547,7 @@ void pic_setDefaultVectorAddr(IsrPrototype addr)
  *
  * @return interrupt's vector slot (0 to 15) or -1 if no slot is available
  */
-int8_t pic_registerVectorIrq(uint8_t irq, IsrPrototype addr)
+int8_t pic_registerVectorIrq(uint8_t irq, pVectoredIsrPrototype addr)
 {
     uint8_t cntr;
     int8_t empty;
@@ -600,7 +632,7 @@ void pic_unregisterVectorIrq(uint8_t irq)
          * Reset its VICVECTCNTLn and VICVECTADDRn.         
          */
         pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        pPicReg->VICVECTADDRn[i] = (uint32_t) __irq_dummyISR;
+        pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
         
         /* And delete the irq from the table */
         __irqVect[i] = -1;
@@ -692,7 +724,7 @@ void pic_unregisterAllVectorIrqs(void)
     for ( i=0; i<NR_VECTORS; ++i )
     {
         pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        pPicReg->VICVECTADDRn[i] = (uint32_t) __irq_dummyISR;
+        pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
         __irqVect[i] = -1;
     }
 }

@@ -284,7 +284,7 @@ static void timerVectIrqTest(void)
     _pic_set_irq_vector_mode(1);
     
     /* Assign the ISR routine for the IRQ 4, triggered by timers 0 and 1 */
-    pic_registerVectorIrq(IRQ_TIMER0, timer0ISR);
+    pic_registerVectorIrq(IRQ_TIMER0, &timer0ISR);
     
     /* Enable IRQ mode */
     irq_enableIrqMode();
@@ -323,11 +323,18 @@ static void timerVectIrqTest(void)
 
 /*
  * An ISR routine, invoked when the RTC triggers the IRQ 10
+ * 
+ * @param param - a void* casted pointer to a uint32_t counter that will be incremented 
  */
-static void rtcISR(void)
+static void rtcISR(void* param)
 {
-    /* Increase the number of "ticks" */
-    __tick_cntr++;
+    uint32_t* pCntr = (uint32_t*) param;
+
+    /* If 'param' is specified, increase the counter of "ticks" */
+    if ( NULL != pCntr )
+    {
+        ++(*pCntr); 
+    }
     
     /* And acknowledge the interrupt, i.e. clear it in the RTC */
     rtc_clearInterrupt();
@@ -354,7 +361,7 @@ static void rtcTest(void)
     uart_print("Expecting a RTC interrupt in 7 seconds...\r\n");
     
     /* Enable necessary controllers: */
-    pic_registerNonVectoredIrq(IRQ_RTC, rtcISR);
+    pic_registerNonVectoredIrq(IRQ_RTC, &rtcISR, (void*) &__tick_cntr);
     irq_enableIrqMode();    
     pic_enableInterrupt(IRQ_RTC);
     rtc_enableInterrupt();

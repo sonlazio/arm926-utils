@@ -30,13 +30,16 @@ limitations under the License.
 #include <stdint.h>
 
 
-typedef void (*IsrPrototype)(void);
+typedef void (*pVectoredIsrPrototype)(void);
+
+typedef void (*pNonVectoredIsrPrototype)(void* param);
+
 
 void irq_enableIrqMode(void);
 
 void irq_disableIrqMode(void);
 
-void pic_registerNonVectoredIrq(uint8_t irq, IsrPrototype addr);
+void pic_registerNonVectoredIrq(uint8_t irq, pNonVectoredIsrPrototype addr, void* param);
 
 void pic_init(void);
 
@@ -52,9 +55,9 @@ int8_t pic_getInterruptType(uint8_t irq);
 
 void pic_setInterruptType(uint8_t irq, int8_t toIrq);
  
-void pic_setDefaultVectorAddr(IsrPrototype addr);
+void pic_setDefaultVectorAddr(pVectoredIsrPrototype addr);
 
-int8_t pic_registerVectorIrq(uint8_t irq, IsrPrototype addr);
+int8_t pic_registerVectorIrq(uint8_t irq, pVectoredIsrPrototype addr);
 
 void pic_unregisterVectorIrq(uint8_t irq);
 

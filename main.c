@@ -184,62 +184,6 @@ static void timersEnabledTest(void)
 }
 
 
-/*
- * Polls the selected timer's Value Register until a zero is detected.
- * Then prints a message about the "tick detected".
- * The sequence is repeated 10 times.
- * By default, the timer is loaded to 1,000,000.
- * At timer's frequency of 1 MHz, this means that 1 "tick" lasts 1 second.
- */
-static void timerPollingTest(void)
-{
-    const uint8_t nr = 2;
-    /*
-     * Hex representation of 1,000,000. Since the timers' counter frequency is
-     * (supposed to be) 1 MHz, it is a convenient factor to specify the tick length
-     * in seconds.
-     */
-    const uint32_t million = 0x000F4240;
-    const uint8_t nrTicks = 10;
-    uint8_t tick = nrTicks;
-    
-    const volatile uint32_t* pVal;
-    
-    uart_print("\r\n=Timer polling test:=\r\n\r\n");
-    
-    timer_init(nr);
-    
-    /* 
-     * To reduce overhead, obtain direct address of the timer's Value Register.
-     * Note that the register should not be modified!
-     */
-    pVal = timer_getValueAddr(nr);
-    /* sanity check */
-    if ( NULL==pVal )
-    {
-        return;
-    }
-    
-    timer_setLoad(nr, million);
-    timer_start(nr);
-    
-    /* repeat the sequence for the specified number of ticks... */
-    while (tick--)
-    {
-        /* poll the Value Register until it reaches 0 */
-        while (*pVal);
-        /* and output a "tick" */
-        uart_printChar('0' - 1 + nrTicks - tick);
-        uart_print(": polling tick detected\r\n");
-    }
-
-    /* When the test is complete, the timer can be disabled/stopped */
-    timer_stop(nr);
-    
-    uart_print("\r\n=Timer polling test completed=\r\n");
-}
-
-
 /* 
  * Counter of ticks, used by IRQ servicing routines. It is used by
  *several functions simultaneously, so it should be volatile.  
@@ -344,7 +288,7 @@ static void rtcISR(void* param)
 /*
  * A test function for testing nonvectored IRQ handling from the RTC.
  * The RTC and a timer are prepared, IRQ10 is enabled, when a "tick" occurs
- * adter 7 seconds and is verified by the timer, everything is cleaned up.
+ * after 7 seconds and is verified by the timer, everything is cleaned up.
  */
 static void rtcTest(void)
 {
@@ -398,6 +342,100 @@ static void rtcTest(void)
     uart_print("\r\n=RTC test completed=\r\n");
 }
 
+
+/*
+ * An ISR routine, invoked when an IRQ is triggered by software.
+ * 
+ * @param param - a void* casted pointer to a uint32_t counter that will be incremented 
+ */
+static void swISR(void* param)
+{
+    uint32_t* pCntr = (uint32_t*) param;
+    
+    /* If 'param' is specified, increase the counter of "ticks" */
+    if ( NULL != pCntr )
+    {
+        /*
+         * When this ISR routine is invoked, a message is sent to the UART:
+         */
+        uart_printChar('0' + __tick_cntr);
+        uart_print(": IRQ tick detected\r\n");
+        ++(*pCntr); 
+    }
+    else
+    {
+        uart_print("Pointer to counter not provided");
+    }
+    
+    /* And acknowledge the interrupt */
+    if ( pic_clearSwInterruptNr(IRQ_SOFTWARE) < 0 )
+    {
+        uart_print("Could not clear SW interrupt\r\n");
+    }
+}
+
+/*
+ * Triggers a software interrupt once per second.
+ * The test sequence is repeated 10 times.
+ */
+static void swIntTest(void)
+{
+    const uint8_t nr = 2;                    /* timer nr. */
+    const uint8_t irq = IRQ_SOFTWARE;
+    const uint32_t timerLd = 1000000;
+    const uint8_t nrTicks = 10;
+    const volatile uint32_t* pVal;
+    
+    uart_print("\r\n=Software interrupt test:=\r\n\r\n");
+    
+    /* init all controllers: */
+    timer_init(nr);
+    pic_init();
+    
+    /* reset the counter of "ticks" */
+    __tick_cntr = 0;
+    
+    /* register ISR for IRQ 1 */
+    pic_registerNonVectoredIrq(irq, &swISR, (void*) &__tick_cntr);
+    
+    /* 
+     * To reduce overhead, obtain direct address of the timer's Value Register.
+     * Note that the register should not be modified!
+     */
+    pVal = timer_getValueAddr(nr);
+
+    /* sanity check */
+    if ( NULL==pVal )
+    {
+        return;
+    }
+    
+    /* Load the timer and enable interrupt handling */
+    timer_setLoad(nr, timerLd);
+    irq_enableIrqMode();
+    pic_enableInterrupt(irq);
+    
+    /* start the timer */
+    timer_start(nr);
+    
+    /* repeat the sequence for the specified number of ticks... */
+    while ( __tick_cntr<nrTicks )
+    {
+        /* poll the Value Register until it reaches 0 */
+        while (*pVal);
+        /* and trigger an interrupt */
+        pic_setSwInterruptNr(irq);
+    }
+
+    /* When the test is complete, timer and interrupt controller can be disabled/stopped */
+    timer_stop(nr);
+    pic_disableInterrupt(irq);
+    irq_disableIrqMode();
+    
+    uart_print("\r\n=Software interrupt test completed=\r\n");
+}
+
+
 /*
  * Starting point of the application.
  * 
@@ -411,7 +449,6 @@ void start(void)
     uart_print("* * * T E S T   S T A R T * * *\r\n");
     
     timersEnabledTest();
-    timerPollingTest();
     
     /*
      * W A R N I N G :
@@ -425,6 +462,7 @@ void start(void)
     timerVectIrqTest();
     
     rtcTest();
+    swIntTest();
     
     uart_print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
     

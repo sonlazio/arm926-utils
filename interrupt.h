@@ -30,8 +30,16 @@ limitations under the License.
 #include <stdint.h>
 
 
+
+/**
+ * Required prototype for vectored ISR servicing routines
+ */
 typedef void (*pVectoredIsrPrototype)(void);
 
+
+/**
+ * Required prototype for non-vectored ISR servicing routines
+ */
 typedef void (*pNonVectoredIsrPrototype)(void* param);
 
 
@@ -69,9 +77,14 @@ void pic_unregisterAllVectorIrqs(void);
 
 void pic_disableAllVectorIrqs(void);
 
-void pic_setSoftwareInterrupt(void);
+int8_t pic_setSwInterruptNr(uint8_t irq);
 
-void pic_clearSoftwareInterrupt(void);
+int8_t pic_clearSwInterruptNr(uint8_t irq);
+
+int8_t pic_setSoftwareInterrupt(void);
+
+int8_t pic_clearSoftwareInterrupt(void);
+
 
 #endif  /* _INTERRUPT_H_ */
  

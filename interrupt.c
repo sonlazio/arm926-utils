@@ -41,8 +41,9 @@ limitations under the License.
 
 /* For public definitions of types: */
 #include "interrupt.h"
-/* For IRQ of software triggered interrupts: */
+
 #include "peripheral_irqs.h"
+
 
 /*
  * 32-bit registers of the Primary Interrupt Controller,
@@ -110,7 +111,7 @@ typedef struct _ARM926EJS_SIC_REGS
 /* SIC_PICENSET (Set interrupt pass through bits) shares its address with SIC_PICENABLE. */
 #define SIC_PICENSET    SIC_PICENABLE
 
-#endif /* #if 0 */
+#endif /* if 0 */
 
 #define UL1                    0x00000001
 #define BM_IRQ_PART            0x0000001F
@@ -136,7 +137,7 @@ static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_B
 typedef struct _nvIsrHandler
 {
     pNonVectoredIsrPrototype isr;    /* address of the ISR */
-    void* param;                    /* void* casted pointer to isr's paramter (if applicable) */
+    void* param;                     /* void* casted pointer to isr's paramter (if applicable) */
 } nvIsrHandler;
 
 static nvIsrHandler __isrNV[NR_INTERRUPTS];
@@ -744,34 +745,107 @@ void pic_disableAllVectorIrqs(void)
     }
 }
 
+
+/**
+ * Triggers a software generated interrupt. The chosen interrupt request line
+ * must be enabled (masked) in order for the interrupt to be actually triggered.
+ *
+ * Nothing is done if 'irq' is invalid (equal or greater than 32).
+ *
+ * @note It is strongly recommended that only IRQs of disabled peripherals 
+ * (or at least peripherals with disabled interrupt triggering) are passed
+ * to this function. It is strongly recommended to use IRQ 1, resrved for
+ * software generated interrupts.
+ *
+ * @param irq - interrupt number (must be smaller than 32)
+ *
+ * @return 'irq' if interrupt successfully set, a negative value (typically -1) otherwise
+ */
+int8_t pic_setSwInterruptNr(uint8_t irq)
+{
+    if (irq>=NR_INTERRUPTS)
+    {
+        return -1;
+    }
+    
+    /* 
+     * Interrupts can be software triggered via VICSOFTINT.
+     * See description of the register on page 3-8 of DDI0181.
+     */
+    
+    pPicReg->VICSOFTINT |= ( UL1 << irq );
+    
+    return irq;
+}
+
+
+/**
+ * Clears an active interrupt via software.
+ *
+ * Nothing is done if 'irq' is invalid (equal or greater than 32) or the 
+ * requested interrupt is not active.
+ *
+ * @note It is only recommended to use this function if the interrupt has been
+ * set via software using pic_setSwInterruptNr.
+ *
+ * @param irq - interrupt number (must be smaller than 32)
+ *
+ * @return 'irq' if interrupt successfully cleared, a negative value (typically -1) otherwise
+ */
+int8_t pic_clearSwInterruptNr(uint8_t irq)
+{
+    uint32_t bitmask;
+    uint8_t retVal = -1;
+    
+    if (irq>=NR_INTERRUPTS)
+    {
+        return -1;
+    }
+    
+    /* 
+     * Interrupts can be software cleared via VICSOFTINTCLEAR.
+     * See description of the register on page 3-8 of DDI0181.
+     */
+     
+     bitmask = UL1 << irq;
+     
+     /*
+      * Before the interrupt is cleared it is checked whether it is active.
+      * TODO: should VICIRQSTATUS and VICFIQSTATUS be check instead of VICRAWINTR?
+      */
+     if ( pPicReg->VICRAWINTR & bitmask )
+     {
+         /* The interrupt is active, clear it 
+          * * The register is write only and should not be read. Only 1-bits clear
+          * their corresponding IRQs, 0-bits have no effect on "their" IRQs.
+          */
+
+         pPicReg->VICSOFTINTCLEAR = bitmask;
+         
+         retVal = irq;
+     }
+     
+     return retVal;
+}
+
+
 /**
  * Triggers the software generated interrupt (IRQ1).
+ *
+ * @return 'irq' if interrupt successfully set, a negative value (typically -1) otherwise
  */
-void pic_setSoftwareInterrupt(void)
+int8_t pic_setSoftwareInterrupt(void)
 {
-    /* 
-     * Software interrupts are generated via VICSOFTINT.
-     * See description of the register on page 3-8 of DDI0181.
-     *
-     * IRQ1 is reserved for a pure software interrupt. See pp 4.47 and 4-48 of DUI0225D.
-     */
-    pPicReg->VICSOFTINT |= (UL1 << IRQ_SOFTWARE);
+    return pic_setSwInterruptNr(IRQ_SOFTWARE);
 }
 
 
 /**
  * Clears the software generated interrupt (IRQ1).
+ *
+ * @return 'irq' if interrupt successfully set, a negative value (typically -1) otherwise
  */
-void pic_clearSoftwareInterrupt(void)
+int8_t pic_clearSoftwareInterrupt(void)
 {
-    /* 
-     * Software interrupts are cleared via VICSOFTINTCLEAR.
-     * See description of the register on page 3-8 of DDI0181.
-     *
-     * IRQ1 is reserved for a pure software interrupt. See pp 4.47 and 4-48 of DUI0225D.
-     * 
-     * The register is write only and should not be read. Only 1-bits clear
-     * their corresponding IRQs, 0-bits have no effect on "their" IRQs.
-     */
-    pPicReg->VICSOFTINTCLEAR = (UL1 << IRQ_SOFTWARE);
+    return pic_clearSwInterruptNr(IRQ_SOFTWARE);
 }

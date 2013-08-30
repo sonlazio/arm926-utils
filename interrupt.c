@@ -72,7 +72,11 @@ typedef struct _ARM926EJS_PIC_REGS
     uint32_t VICVECTADDRn[16];        /* Vector Address Registers */
     const uint32_t Unused3[48];       /* Unused, should not be modified */
     uint32_t VICVECTCNTLn[16];        /* Vector Control Registers */
+    const uint32_t Unused4[872];      /* Unused, should not be modified */
+    const uint32_t VICPERIPHID[4];    /* Peripheral Identification Registers, read only */
+    const uint32_t VICCELLID[4];      /* PrimeCell Identification Registers, read only */
 } ARM926EJS_PIC_REGS;
+
 
 /* 
  * Register map of the SIC is provided, but it is commented out
@@ -123,6 +127,7 @@ typedef struct _ARM926EJS_SIC_REGS
 
 static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_BASE);
 /* static volatile ARM926EJS_SIC_REGS* const pSicReg = (ARM926EJS_SIC_REGS*) (SIC_BASE); */
+
 
 /*
  * A table with addresses of ISR routines for each IRQ request between 0 and 31,

@@ -71,13 +71,13 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_TIMER_REGS 
 {
-	uint32_t LOAD;           /* Load Register, TimerXLoad */
-	const uint32_t VALUE;    /* Current Value Register, TimerXValue, read only */
-	uint32_t CONTROL;        /* Control Register, TimerXControl */
-	uint32_t INTCLR;         /* Interrupt Clear Register, TimerXIntClr */
-	uint32_t RIS;            /* Raw Interrupt Status Register, TimerXRIS, read only */
-	uint32_t MIS;            /* Masked Interrupt Status Register, TimerXMIS, read only */
-	uint32_t BGLOAD;         /* Background Load Register, TimerXBGLoad */
+    uint32_t LOAD;                   /* Load Register, TimerXLoad */
+    const uint32_t VALUE;            /* Current Value Register, TimerXValue, read only */
+    uint32_t CONTROL;                /* Control Register, TimerXControl */
+    uint32_t INTCLR;                 /* Interrupt Clear Register, TimerXIntClr, write only */
+    uint32_t RIS;                    /* Raw Interrupt Status Register, TimerXRIS, read only */
+    uint32_t MIS;                    /* Masked Interrupt Status Register, TimerXMIS, read only */
+    uint32_t BGLOAD;                 /* Background Load Register, TimerXBGLoad */
 } ARM926EJS_TIMER_REGS;
 
 /*

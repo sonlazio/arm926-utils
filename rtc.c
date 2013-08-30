@@ -50,18 +50,24 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_RTC_REGS 
 {
-    const uint32_t RTCDR;        /* Data register, read only */
-    uint32_t RTCMR;              /* Match register */
-    uint32_t RTCLR;              /* Load register */
-    uint32_t RTCCR;              /* Control register */
-    uint32_t RTCIMSC;            /* Interrupt mask set and clear register */
-    const uint32_t RTCRIS;       /* Raw interrupt status register, read only */
-    const uint32_t RTCMIS;       /* Masked interrupt status register, read only */
-    uint32_t RTCICR;             /* Interupt clear register, write only */
+    const uint32_t RTCDR;                /* Data register, read only */
+    uint32_t RTCMR;                      /* Match register */
+    uint32_t RTCLR;                      /* Load register */
+    uint32_t RTCCR;                      /* Control register */
+    uint32_t RTCIMSC;                    /* Interrupt mask set and clear register */
+    const uint32_t RTCRIS;               /* Raw interrupt status register, read only */
+    const uint32_t RTCMIS;               /* Masked interrupt status register, read only */
+    uint32_t RTCICR;                     /* Interupt clear register, write only */
+    const uint32_t Reserved1[24];        /* Reserved, should not be modified */
+    const uint32_t ReservedTest[5];      /* Reserved for test purposes, should not be modified */
+    const uint32_t Reserved2[975];       /* Reserved, should not be modified */
+    const uint32_t ReservedIdExp[4];     /* Reserved for future ID expansion, should not be modified */
+    const uint32_t RTCPERIPHID[4];       /* Peripheral ID register, read only */
+    const uint32_t RTCCELLID[4];         /* PrimeCell ID register */
 } ARM926EJS_RTC_REGS;
 
 /*
- * Pointers to the RTC base address:
+ * Pointer to the RTC base address:
  */
 static volatile ARM926EJS_RTC_REGS* const pReg = (ARM926EJS_RTC_REGS*) (RTC_BASE);
 

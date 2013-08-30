@@ -209,7 +209,7 @@ void irq_disableIrqMode(void)
 
 
 /* a prototype required for __irq_dummyISR() */
-extern void uart_print(char* str);
+extern void uart_print(uint8_t nr, char* str);
 
 /*
  * A dummy ISR routine for servicing vectored IRQs.
@@ -224,7 +224,7 @@ static void __irq_dummyISR(void)
      * An "empty" function. 
      * As this is a test aplication, it emits a warning to the UART0.
      */
-     uart_print("<WARNING, A DUMMY ISR ROUTINE!!!>\r\n");
+     uart_print(0, "<WARNING, A DUMMY ISR ROUTINE!!!>\r\n");
 }
 
 

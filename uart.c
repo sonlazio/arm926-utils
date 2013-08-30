@@ -18,7 +18,7 @@ limitations under the License.
  * @file
  * 
  * Implementation of the board's UART functionality.
- * Currently only UART 0 is supported.
+ * All 3 UARTs are supported.
  * 
  * More info about the board and the UART controller:
  * - Versatile Application Baseboard for ARM926EJ-S, HBI 0118 (DUI0225D):
@@ -137,37 +137,61 @@ limitations under the License.
  */
 typedef struct _ARM926EJS_UART_REGS
 {
-    uint32_t UARTDR;               /* UART Data Register, UARTDR */
-    uint32_t UARTRSR;              /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
-    const uint32_t Reserved1[4];   /* reserved, should not be modified */
-    const uint32_t UARTFR;         /* Flag Register, UARTFR, read only */
-    const uint32_t Reserved2;      /* reserved, should not be modified */
-    uint32_t UARTILPR;             /* IrDA Low-Power Counter Register, UARTILPR */
-    uint32_t UARTIBRD;             /* Integer Baud Rate Register, UARTIBRD */
-    uint32_t UARTFBRD;             /* Fractional Baud Rate Register, UARTFBRD */
-    uint32_t UARTLC_H;             /* Line Control Register, UARTLC_H */
-    uint32_t UARTCR;               /* Control Register, UARTCR */
-    uint32_t UARTIFLS;             /* Interrupt FIFO Level Select Register, UARTIFLS */
-    uint32_t UARTIMSC;             /* Interrupt Mask Set/Clear Register, UARTIMSC */
-    const uint32_t UARTRIS;        /* Raw Interrupt Status Register, UARTRIS, read only */
-    const uint32_t UARTMIS;        /* Mask Interrupt Status Register, UARTMIS, read only */
-    uint32_t UARTICR;              /* Interrupt Clear Register */
-    uint32_t UARTDMACR;            /* DMA Control Register, UARTDMACR */
+    uint32_t UARTDR;                   /* UART Data Register, UARTDR */
+    uint32_t UARTRSR;                  /* Receive Status Register, Error Clear Register, UARTRSR/UARTECR */
+    const uint32_t Reserved1[4];       /* reserved, should not be modified */
+    const uint32_t UARTFR;             /* Flag Register, UARTFR, read only */
+    const uint32_t Reserved2;          /* reserved, should not be modified */
+    uint32_t UARTILPR;                 /* IrDA Low-Power Counter Register, UARTILPR */
+    uint32_t UARTIBRD;                 /* Integer Baud Rate Register, UARTIBRD */
+    uint32_t UARTFBRD;                 /* Fractional Baud Rate Register, UARTFBRD */
+    uint32_t UARTLC_H;                 /* Line Control Register, UARTLC_H */
+    uint32_t UARTCR;                   /* Control Register, UARTCR */
+    uint32_t UARTIFLS;                 /* Interrupt FIFO Level Select Register, UARTIFLS */
+    uint32_t UARTIMSC;                 /* Interrupt Mask Set/Clear Register, UARTIMSC */
+    const uint32_t UARTRIS;            /* Raw Interrupt Status Register, UARTRIS, read only */
+    const uint32_t UARTMIS;            /* Mask Interrupt Status Register, UARTMIS, read only */
+    uint32_t UARTICR;                  /* Interrupt Clear Register */
+    uint32_t UARTDMACR;                /* DMA Control Register, UARTDMACR */
+    const uint32_t Reserved3[13];      /* reserved, should not be modified */
+    const uint32_t ReservedTest[4];    /* reserved for test purposes, should not be modified */
+    const uint32_t Reserved4[976];     /* reserved, should not be modified */
+    const uint32_t ReservedIdExp[4];   /* reserved for future ID expansion, should not be modified */
+    const uint32_t UARTPeriphID[4];    /* UART peripheral ID, read only */
+    const uint32_t UARTCellID[4];      /* UART Cell ID, read only */
 } ARM926EJS_UART_REGS;
 
 /* Shared UART register: */
 #define UARTECR       UARTRSR
 
-static volatile ARM926EJS_UART_REGS* const pReg = (ARM926EJS_UART_REGS*) (UART0_BASE);
+/* Number of UARTS on the ARM Versatile Application Board: */
+#define NR_UARTS      3
 
+
+static volatile ARM926EJS_UART_REGS* const pReg[NR_UARTS] = 
+                    {
+                        (ARM926EJS_UART_REGS*) (UART0_BASE),
+                        (ARM926EJS_UART_REGS*) (UART1_BASE),
+                        (ARM926EJS_UART_REGS*) (UART2_BASE)
+                    };
 
 /**
- * Initializes the UART controller.
+ * Initializes a UART controller.
  * It is enabled for transmission (Tx) only, receive must be enabled separately.
  * By default all IRQ sources are disabled (masked out).
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_init(void)
+void uart_init(uint8_t nr)
 {
+    /* Sanity check */
+    if ( nr >= NR_UARTS )
+    {
+        return;
+    }
+
     /*
      * Registers' reserved bits should not be modified.
      * For that reason, the registers are set in two steps:
@@ -180,10 +204,10 @@ void uart_init(void)
      * Whatever the current state, as suggested on page 3-16 of the DDI0183, the UART
      * should be disabled first:
      */
-    pReg->UARTCR &= ~CTL_UARTEN;
+    pReg[nr]->UARTCR &= ~CTL_UARTEN;
     
     /* Set Control Register's TXE to 1: */
-    pReg->UARTCR |= CTL_TXE;
+    pReg[nr]->UARTCR |= CTL_TXE;
     
     /* 
      * Set all other bits (except UARTEN) of the Control Register to 0:
@@ -198,30 +222,34 @@ void uart_init(void)
      * - RTSEn
      * - CTSEn
      */
-     pReg->UARTCR &= ( ~CTL_SIREN & ~CTL_SIRLP & ~CTL_LBE & ~CTL_RXE & ~CTL_DTR );
-     pReg->UARTCR &= ( ~CTL_RTS & ~CTL_OUT1 & ~CTL_OUT2 & ~CTL_RTSEn & ~CTL_CTSEn );
+     pReg[nr]->UARTCR &= ( ~CTL_SIREN & ~CTL_SIRLP & ~CTL_LBE & ~CTL_RXE & ~CTL_DTR );
+     pReg[nr]->UARTCR &= ( ~CTL_RTS & ~CTL_OUT1 & ~CTL_OUT2 & ~CTL_RTSEn & ~CTL_CTSEn );
      
  
      /* By default, all interrupts are masked out (i.e. cleared to 0): */
-     pReg->UARTIMSC &= ( ~INT_RIMIM & ~INT_CTSMIM & ~INT_DCDMIM & ~INT_DSRMIM & ~INT_RXIM & ~INT_TXIM );
-     pReg->UARTIMSC &= ( ~INT_RTIM & ~INT_FEIM & ~INT_PEIM & ~INT_BEIM & ~INT_OEIM );
+     pReg[nr]->UARTIMSC &= ( ~INT_RIMIM & ~INT_CTSMIM & ~INT_DCDMIM & ~INT_DSRMIM & ~INT_RXIM & ~INT_TXIM );
+     pReg[nr]->UARTIMSC &= ( ~INT_RTIM & ~INT_FEIM & ~INT_PEIM & ~INT_BEIM & ~INT_OEIM );
      
      /* TODO: line control... */
      
      /* Finally enable the UART: */
-     pReg->UARTCR |= CTL_UARTEN;
+     pReg[nr]->UARTCR |= CTL_UARTEN;
      
      /* reserved bits remained unmodified */
 }
 
 
 /*
- * Outputs a character to the UART0. This short function is used by other functions,
+ * Outputs a character to the specified UART. This short function is used by other functions,
  * that is why it is implemented as an inline function.
- * 
+ *
+ * As the function is "private", it trusts its caller functions, that 'nr'
+ * is valid (between 0 and 2).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  * @param ch - character to be sent to the UART
  */
-static inline void __printCh(char ch)
+static inline void __printCh(uint8_t nr, char ch)
 {
    /*
     * Qemu ignores other UART's registers, anyway the Flag Register is checked 
@@ -235,7 +263,7 @@ static inline void __printCh(char ch)
     * In this case, wait until some "waiting" characters have been transmitted and
     * the TXFF is set to 0, indicating the Transmit FIFO can accept additional characters.
     */
-   while ( pReg->UARTFR & FR_TXFF );
+   while ( pReg[nr]->UARTFR & FR_TXFF );
    
    /*
     * The Data Register is a 32-bit word, however only the least significant 8 bits
@@ -247,37 +275,55 @@ static inline void __printCh(char ch)
     * only the desired character itself, not the whole word.  
     */
    
-    *( (char*) &(pReg->UARTDR) ) = ch;
+    *( (char*) &(pReg[nr]->UARTDR) ) = ch;
 }
 
 
 /**
- * Outputs a character to UART 0.
- * 
+ * Outputs a character to the specified UART.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2) 
  * @param ch - character to be sent to the UART
  */ 
-void uart_printChar(char ch)
+void uart_printChar(uint8_t nr, char ch)
 {
+    /* Sanity check */
+    if ( nr >= NR_UARTS )
+    {
+        return;
+    }
+    
     /* just use the provided inline function: */
-    __printCh(ch);
+    __printCh(nr, ch);
 }
 
 
 /**
- * Outputs a string to UART 0.
+ * Outputs a string to the sepcified UART.
  *
  * "<NULL>" is transmitted if 'str' is equal to NULL. 
  *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  * @param str - string to be sent to the UART, must be '\0' terminated.
  */
-void uart_print(const char* str)
+void uart_print(uint8_t nr, const char* str)
 {
     /* 
       if NULL is passed, avoid possible problems with deferencing of NULL 
       and print this string: 
      */
-    char* null_str = "<NULL>\r\n";
-    char* cp;
+    const char* null_str = "<NULL>\r\n";
+    const char* cp;
+    
+    /* Sanity check */
+    if ( nr >= NR_UARTS )
+    {
+        return;
+    }
     
     /* handle possible NULL value of str: */
     cp = ( NULL==str ? null_str : (char*) str );
@@ -287,26 +333,46 @@ void uart_print(const char* str)
      */
     for ( ; '\0' != *cp; ++cp )
     {
-        __printCh(*cp);
+        __printCh(nr, *cp);
     }
 }
 
 
 /**
- * Enables the UART controller.
+ * Enables the specified UART controller.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_enableUart(void)
+void uart_enableUart(uint8_t nr)
 {
-    pReg->UARTCR |= CTL_UARTEN;
+    /* Sanity check */
+    if ( nr >= NR_UARTS )
+    {
+        return;
+    }
+    
+    pReg[nr]->UARTCR |= CTL_UARTEN;
 }
 
 
 /**
- * Disables the UART controller.
+ * Disables the specified UART controller.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_disableUart(void)
+void uart_disableUart(uint8_t nr)
 {
-    pReg->UARTCR &= ~CTL_UARTEN;
+    /* Sanity check */
+    if ( nr >= NR_UARTS )
+    {
+        return;
+    }
+    
+    pReg[nr]->UARTCR &= ~CTL_UARTEN;
 }
 
 
@@ -314,75 +380,102 @@ void uart_disableUart(void)
  * Sets or clears a bit of the Control Register. This function is short and
  * used by other functions, this is why it is implemented as an inline function.
  *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  * @param set - if nonzero, set bitmask's bit(s) to 1, if zero, clear them to 0
  * @param bitmask - bitmask of 1-bits that will be set or cleared
  */
-static inline void __setCrBit(int8_t set, uint32_t bitmask)
+static inline void __setCrBit(uint8_t nr, int8_t set, uint32_t bitmask)
 {
+    uint32_t enabled;
+    
+    /* Sanity check */
+    if ( nr >= NR_UARTS )
+    {
+        return;
+    }
+    
     /* Store UART's enable status (UARTEN) */
-    const uint32_t enabled = pReg->UARTCR & CTL_UARTEN;
+    enabled = pReg[nr]->UARTCR & CTL_UARTEN;
     
     /* 
      * As suggested on page 3-16 of the DDI0183, the UART should be disabled
      * prior to any modificiation of the Control Register
      */
-    pReg->UARTCR &= ~CTL_UARTEN;
+    pReg[nr]->UARTCR &= ~CTL_UARTEN;
     
     /* Depending on 'set'... */
     if (set)
     {
         /* Set bitmask's bits to 1 using bitwise OR */
-        pReg->UARTCR |= bitmask;
+        pReg[nr]->UARTCR |= bitmask;
     }
     else
     {
         /* Clear bitmask's bits to 0 using bitwise AND */
-        pReg->UARTCR &= ~bitmask;
+        pReg[nr]->UARTCR &= ~bitmask;
     }
     
     /* Reenable the UART if it was been enabled before */
     if (enabled)
     {
-        pReg->UARTCR |= CTL_UARTEN;
+        pReg[nr]->UARTCR |= CTL_UARTEN;
     }
 }
 
 
 /**
- * Enables UART's transmit (Tx) section.
+ * Enables specified UART's transmit (Tx) section.
  * UART's general enable status (UARTEN) remains unmodified.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_enableTx(void)
+void uart_enableTx(uint8_t nr)
 {
-    __setCrBit(1, CTL_TXE);
+    __setCrBit(nr, 1, CTL_TXE);
 }
 
 
 /**
- * Disables UART's transmit (Tx) section. 
+ * Disables specified UART's transmit (Tx) section. 
  * UART's general enable status (UARTEN) remains unmodified.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_disableTx(void)
+void uart_disableTx(uint8_t nr)
 {
-    __setCrBit(0, CTL_TXE);
+    __setCrBit(nr, 0, CTL_TXE);
 }
 
 
 /**
- * Enables UART's transmit (Rx) section.
- * UART's general enable status (UARTEN) remains unmodified. 
+ * Enables specified UART's transmit (Rx) section.
+ * UART's general enable status (UARTEN) remains unmodified.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_enableRx(void)
+void uart_enableRx(uint8_t nr)
 {
-    __setCrBit(1, CTL_RXE);
+    __setCrBit(nr, 1, CTL_RXE);
 }
 
 
 /**
- * Disables UART's transmit (Rx) section.
+ * Disables specified UART's transmit (Rx) section.
  * UART's general enable status (UARTEN) remains unmodified.
+ *
+ * Nothing is done if 'nr' is invalid (equal or greater than 3).
+ *
+ * @param nr - number of the UART (between 0 and 2)
  */
-void uart_disableRx(void)
+void uart_disableRx(uint8_t nr)
 {
-    __setCrBit(0, CTL_RXE);
+    __setCrBit(nr, 0, CTL_RXE);
 }

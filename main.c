@@ -133,8 +133,8 @@ static void unsignedLongSize(void)
 {
     strbuf[0] = '0' + sizeof(unsigned long);
     strbuf[1] = '\0';
-    uart_print(strbuf);
-    uart_print("\r\n");
+    uart_print(0, strbuf);
+    uart_print(0, "\r\n");
 }
 #endif
 
@@ -148,7 +148,7 @@ static void timersEnabledTest(void)
     uint8_t i;
     char* pstr;
     
-    uart_print("\r\n=Timer enabled test:=\r\n\r\n");
+    uart_print(0, "\r\n=Timer enabled test:=\r\n\r\n");
     /* Initialize all 4 timers: */
     for ( i=0; i<4; ++i )
     {
@@ -164,23 +164,23 @@ static void timersEnabledTest(void)
     {
 
         /* Print the timer's number */
-        uart_print("Timer ");
+        uart_print(0, "Timer ");
         strbuf[0] = '0' + i;
         strbuf[1] = ':';
         strbuf[2] = ' ';
         strbuf[3] = '\0';
-        uart_print(strbuf);
+        uart_print(0, strbuf);
 
         /* then call the appropriate timer function */
         pstr = (0!=timer_isEnabled(i) ? "enabled" : "disabled");
-        uart_print(pstr);
-        uart_print("\r\n");
+        uart_print(0, pstr);
+        uart_print(0, "\r\n");
     }
     
     /* The test is completed, stop the 2nd timer */
     timer_stop(1);
     
-    uart_print("\r\n=Timer enabled test completed=\r\n");
+    uart_print(0, "\r\n=Timer enabled test completed=\r\n");
 }
 
 
@@ -198,8 +198,8 @@ static void timer0ISR(void)
     /*
      * When this ISR routine is invoked, a message is sent to the UART:
      */
-    uart_printChar('0' + __tick_cntr);
-    uart_print(": IRQ tick detected\r\n");
+    uart_printChar(0, '0' + __tick_cntr);
+    uart_print(0, ": IRQ tick detected\r\n");
     
     /* Increase the number of ticks */
     __tick_cntr++;
@@ -220,7 +220,7 @@ extern void _pic_set_irq_vector_mode(int8_t mode);
 static void timerVectIrqTest(void)
 {
 
-    uart_print("\r\n=Timer vectored IRQ test:=\r\n\r\n");
+    uart_print(0, "\r\n=Timer vectored IRQ test:=\r\n\r\n");
     
     /* Initialize the PIC */
     pic_init();
@@ -261,7 +261,7 @@ static void timerVectIrqTest(void)
     /* Set IRQ handling mode back to non-vectored: */
     _pic_set_irq_vector_mode(0);
     
-    uart_print("\r\n=Timer vectored IRQ test completed=\r\n");
+    uart_print(0, "\r\n=Timer vectored IRQ test completed=\r\n");
 }
 
 
@@ -295,14 +295,14 @@ static void rtcTest(void)
     const uint32_t period = 7;   /* in seconds */
     const uint32_t initTimerVal = 100000000; /* 100,000,000 us = 100 sec. */
     
-    uart_print("\r\n=RTC test:=\r\n\r\n");
+    uart_print(0, "\r\n=RTC test:=\r\n\r\n");
     
     /* Init all necessary peripherals */
     rtc_init();
     timer_init(3);
     pic_init();
     
-    uart_print("Expecting a RTC interrupt in 7 seconds...\r\n");
+    uart_print(0, "Expecting a RTC interrupt in 7 seconds...\r\n");
     
     /* Enable necessary controllers: */
     pic_registerNonVectoredIrq(IRQ_RTC, &rtcISR, (void*) &__tick_cntr);
@@ -335,11 +335,11 @@ static void rtcTest(void)
     
     /* Finally verify that the RTC indeed triggered an IRQ after approx. 7 seconds */
     ul2dec(strbuf, initTimerVal - timer_getValue(3) );
-    uart_print("RTC interrupt triggered after: ");
-    uart_print(strbuf);
-    uart_print(" micro seconds.\r\n");
+    uart_print(0, "RTC interrupt triggered after: ");
+    uart_print(0, strbuf);
+    uart_print(0, " micro seconds.\r\n");
     
-    uart_print("\r\n=RTC test completed=\r\n");
+    uart_print(0, "\r\n=RTC test completed=\r\n");
 }
 
 
@@ -358,19 +358,19 @@ static void swISR(void* param)
         /*
          * When this ISR routine is invoked, a message is sent to the UART:
          */
-        uart_printChar('0' + __tick_cntr);
-        uart_print(": IRQ tick detected\r\n");
+        uart_printChar(0, '0' + __tick_cntr);
+        uart_print(0, ": IRQ tick detected\r\n");
         ++(*pCntr); 
     }
     else
     {
-        uart_print("Pointer to counter not provided");
+        uart_print(0, "Pointer to counter not provided");
     }
     
     /* And acknowledge the interrupt */
     if ( pic_clearSwInterruptNr(IRQ_SOFTWARE) < 0 )
     {
-        uart_print("Could not clear SW interrupt\r\n");
+        uart_print(0, "Could not clear SW interrupt\r\n");
     }
 }
 
@@ -386,7 +386,7 @@ static void swIntTest(void)
     const uint8_t nrTicks = 10;
     const volatile uint32_t* pVal;
     
-    uart_print("\r\n=Software interrupt test:=\r\n\r\n");
+    uart_print(0, "\r\n=Software interrupt test:=\r\n\r\n");
     
     /* init all controllers: */
     timer_init(nr);
@@ -432,7 +432,7 @@ static void swIntTest(void)
     pic_disableInterrupt(irq);
     irq_disableIrqMode();
     
-    uart_print("\r\n=Software interrupt test completed=\r\n");
+    uart_print(0, "\r\n=Software interrupt test completed=\r\n");
 }
 
 
@@ -444,9 +444,9 @@ static void swIntTest(void)
  */ 
 void start(void)
 {
-    uart_init();
+    uart_init(0);
     
-    uart_print("* * * T E S T   S T A R T * * *\r\n");
+    uart_print(0, "* * * T E S T   S T A R T * * *\r\n");
     
     timersEnabledTest();
     
@@ -464,7 +464,7 @@ void start(void)
     rtcTest();
     swIntTest();
     
-    uart_print("\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
+    uart_print(0, "\r\n* * * T E S T   C O M P L E T E D * * *\r\n");
     
     /* End in an infinite loop */
     for ( ; ; );

@@ -18,7 +18,7 @@ limitations under the License.
  * @file
  * 
  * Declaration of public functions that handle
- * the board's UART controller.
+ * the board's UART controllers.
  * 
  * @author Jernej Kovacic
  */
@@ -26,22 +26,23 @@ limitations under the License.
 #ifndef _UART_H_
 #define _UART_H_
 
-void uart_init(void);
+void uart_init(uint8_t nr);
 
-void uart_printChar(char ch);
+void uart_printChar(uint8_t nr, char ch);
 
-void uart_print(const char*);
+void uart_print(uint8_t nr, const char* str);
 
-void uart_enableUart(void);
+void uart_enableUart(uint8_t nr);
 
-void uart_disableUart(void);
+void uart_disableUart(uint8_t nr);
 
-void uart_enableTx(void);
+void uart_enableTx(uint8_t nr);
 
-void uart_disableTx(void);
+void uart_disableTx(uint8_t nr);
 
-void uart_enableRx(void);
+void uart_enableRx(uint8_t nr);
 
-void uart_disableRx(void);
+void uart_disableRx(uint8_t nr);
+
 
 #endif  /* _UART_H_ */

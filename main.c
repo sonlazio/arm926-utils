@@ -436,7 +436,6 @@ static void swIntTest(void)
 }
 
 
-extern void __printNvTable(void);
 /*
  * Starting point of the application.
  * 

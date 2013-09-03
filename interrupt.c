@@ -117,6 +117,7 @@ typedef struct _ARM926EJS_SIC_REGS
 
 #endif /* if 0 */
 
+
 #define UL1                    0x00000001
 #define BM_IRQ_PART            0x0000001F
 #define BM_VECT_ENABLE_BIT     0x00000020
@@ -133,19 +134,16 @@ static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_B
  * A table with addresses of ISR routines for each IRQ request between 0 and 31,
  * and pointers to routines' parameters if applicable.
  * The table is used for non vectored interrupt handling only.
- * 
- * A routine address for the given IRQ request ('irq') is simply accessed as
- * __isrNV[irq]. In future, this may be redesigned to support prioritization, etc.
- * 
- * TODO  prioritization of IRQs?
  */
-typedef struct _nvIsrHandler
+typedef struct _isrRecord
 {
+    int8_t irq;                      /* IRQ handled by this record */
     pNonVectoredIsrPrototype isr;    /* address of the ISR */
     void* param;                     /* void* casted pointer to isr's paramter (if applicable) */
-} nvIsrHandler;
+    int8_t priority;                 /* priority of this IRQ */
+} isrRecord;
 
-static nvIsrHandler __isrNV[NR_INTERRUPTS];
+static isrRecord __isrNV[NR_INTERRUPTS];
 
 
 /*
@@ -256,7 +254,7 @@ static void __irq_dummyNvISR(void* param)
  *
  * NOTE:
  * There is no check that provided addresses are correct! It is up to developers
- * that valid ISR addresses are assigned before the IRQ is enabled!
+ * that valid ISR addresses are assigned before the IRQ mode is enabled!
  * 
  * It supports two modes of IRQ handling, vectored and nonvectored mode. They are implemented 
  * for testing purposes only, in a real world application, only one mode should be selected 
@@ -269,28 +267,41 @@ void _pic_IrqHandler(void)
         /*
          * Non vectored implementation, a.k.a. "Simple interrupt flow", described
          * on page 2-9 of DDI0181.
-         * 
-         * At the moment the IRQs are "prioritarized" by their numbers,
-         * a smaller number means higher priority.
          */
 
-        uint8_t irq;
+        uint8_t i;
         
         /*
-         * Check each bit of VICIRQSTATUS to determine which sources triggered
-         * an interrupt.
+         * Traverse the priority table, for each IRQ check, whether its corresponding
+         * bit in VICIRQSTATUS is set.
          */
-        for ( irq=0; irq<NR_INTERRUPTS; ++irq )
+        for ( i=0; i<NR_INTERRUPTS; ++i )
         {
-            if ( pPicReg->VICIRQSTATUS & (UL1<<irq) )
+            /*
+             * Stop scanning the table if an invalid IRQ is found.
+             */
+            if ( __isrNV[i].irq<0 || __isrNV[i].irq>=NR_INTERRUPTS )
             {
-	            /*
+                break;  /* out of for i */
+            }
+            
+
+            if ( pPicReg->VICIRQSTATUS & (UL1<<__isrNV[i].irq) )
+            {
+	        /*
                  * The irq'th bit is set, call its service routine:
                  */ 
-                ( *__isrNV[irq].isr )( __isrNV[irq].param );
+                ( *__isrNV[i].isr )( __isrNV[i].param );
             }
+        }  /* for i */
+        
+        /* Call the dummy ISR if the IRQ has not been found: */
+        if ( i >= NR_INTERRUPTS )
+        {
+            __irq_dummyNvISR(NULL);
         }
-    }
+        
+    }  /* if non vectored mode */
     else
     {
         /*
@@ -315,31 +326,159 @@ void _pic_IrqHandler(void)
          * priority hardware that the interrupt has been serviced. 
          */
         pPicReg->VICVECTADDR = 0xFFFFFFFF;
-    }
+    } /* else */
 }
 
 
 /**
- * Register an interrupt routine service (ISR) for the specified IRQ request.
+ * Registers an interrupt routine service (ISR) for the specified IRQ request.
  * It is applicable for non-vectored IRQ handling only!
  * 
- * Nothing is done if either irq (equal or greater than 32) or addr (equal to NULL)
+ * Nothing is done if either 'irq' (equal or greater than 32) or 'addr' (equal to NULL)
  * is invalid.
  * 
+ * Entries are internally sorted in descending order by priority.
+ * Entries with the same priority are additionally sorted by the time of registration
+ * (entries registered earlier are ranked higher).
+ * if 'irq' has already been registered, its internal entry will be overriden with 
+ * new values and resorted by priority.
+ *
+ * @note IRQ handling should be completely disabled prior to calling this function!
  * @note 'param' should not point to data in stack unless you really know what you are doing!
  * 
  * @param irq - IRQ request number (must be smaller than 32)
  * @param addr - address of the ISR that services the interrupt 'irq'
  * @param param - void* casted pointer to function's parameter(s) (may be NULL if not applicable)
+ * @param priority - priority of handling this IRQ (higher value means higher priority), the actual priority
+ *                   will be silently truncated to 127 if this value is exceeded.
+ *
+ * @return position of the IRQ handling entry within an internal table, a negative value if registration was unsuccessful
  */ 
-void pic_registerNonVectoredIrq(uint8_t irq, pNonVectoredIsrPrototype addr, void* param)
+int8_t pic_registerNonVectoredIrq( uint8_t irq,
+                                   pNonVectoredIsrPrototype addr,
+                                   void* param,
+                                   uint8_t priority )
 {
-    if (irq<NR_INTERRUPTS && NULL!=addr)
+    const uint8_t prior = priority & 0x7F;
+    int8_t irqPos = -1;
+    int8_t prPos = -1;
+    int8_t i;
+    
+    /* sanity check */
+    if ( irq>=NR_INTERRUPTS || NULL==addr )
     {
-        /* at the current implementation just put addr to the appropriate field of the table */
-        __isrNV[irq].isr = addr;
-        __isrNV[irq].param = param;
+        return;
     }
+    
+    /*
+     * The priority table is traversed and two values are obtained:
+     * - irqPos: index of the existing 'irq' or the first "empty" line
+     * - prPos: index of the first entry whose priority is not larger or equal than 'prior'
+     * The entry will be inserted into prPos, prior to that, all entries between 'irqPos and 'prPos'
+     * will be moved one line up or down.
+     */
+    for ( i=0; i<NR_INTERRUPTS; ++i )
+    {
+        if ( irqPos<0 &&  (__isrNV[i].irq<0 || __isrNV[i].irq==irq) )
+        {
+            irqPos = i;
+        }
+        
+        if ( prPos<0 && (__isrNV[i].priority<0 || __isrNV[i].priority<prior) )
+        {
+            prPos = i;
+        }
+    }
+
+    /* just in case, should never occur */    
+    if ( irqPos>=NR_INTERRUPTS || irqPos<0 || prPos<0 )
+    {
+        return;
+    }
+    
+    /* if prPos is less than irqPos, move all intermediate entries one line down */
+    if ( irqPos > prPos )
+    {
+        for ( i=irqPos; i>prPos; --i )
+        {
+            __isrNV[i] = __isrNV[i-1];
+        }
+    }
+    
+    /* if prPos is greater than irqPos, move all intermediate entries one line up... */
+    if ( prPos > irqPos )
+    {
+        /* however this does not include the entry at prPos, whose priority is less than prior!!!*/
+        --prPos;
+        
+        for ( i=irqPos; i<prPos; ++i )
+        {
+            __isrNV[i] = __isrNV[i+1];
+        }
+    }
+    
+    /* finally fill the entry at 'prPos' with the input values */
+    __isrNV[prPos].irq = irq;
+    __isrNV[prPos].isr = addr;
+    __isrNV[prPos].param = param;
+    __isrNV[prPos].priority = prior;
+    
+    return prPos;
+}
+
+
+/**
+ * Unregisters an interrupt servicing routine (ISR) for the specified IRQ request
+ * and removes it from the internal table of ISR routines.
+ *
+ * It is applicable for non-vectored IRQ handling only!
+ * 
+ * Nothing is done if either irq (equal or greater than 32) is invalid or it has not
+ * been registered before.
+ * 
+ * @note IRQ handling should be completely disabled prior to calling this function!
+ * 
+ * @param irq - IRQ request number (must be smaller than 32)
+ */
+void pic_unregisterNonVectoredIrq(uint8_t irq)
+{
+    uint8_t pos;
+    
+    /* sanity check */
+    if ( irq >= NR_INTERRUPTS )
+    {
+        return;
+    }
+    
+    /* Find the 'irq' in the priority table: */
+    for ( pos=0; pos<NR_INTERRUPTS; ++pos )
+    {
+        if ( __isrNV[pos].irq == irq )
+        {
+            break;  /* out of for pos */
+        }
+    }
+    
+    /* Nothing to do if IRQ has not been found: */
+    if ( pos>=NR_INTERRUPTS )
+    {
+        return;
+    }
+    
+    /* 
+     * Shift all entries past 'pos' (including invalid ones) one line up.
+     * This will override the entry at 'pos'.     
+     */
+    for ( ; pos<NR_INTERRUPTS-1; ++pos )
+    {
+        __isrNV[pos] = __isrNV[pos+1];
+    }
+    
+    /* And "clear" the last entry to "default" values (see also pic_init()): */
+    __isrNV[NR_INTERRUPTS-1].irq = -1;                    /* no IRQ assigned */
+    __isrNV[NR_INTERRUPTS-1].isr = &__irq_dummyNvISR;     /* dummy ISR routine */
+    __isrNV[NR_INTERRUPTS-1].param = NULL;                /* no paramater */
+    __isrNV[NR_INTERRUPTS-1].priority = -1;               /* lowest priority */
 }
 
 
@@ -380,8 +519,10 @@ void pic_init(void)
     /* clear all nonvectored ISR addresses: */
     for ( i=0; i<NR_INTERRUPTS; ++i )
     {
-        __isrNV[i].isr = &__irq_dummyNvISR;
-        __isrNV[i].param = NULL;
+        __isrNV[i].irq = -1;                 /* no IRQ assigned */
+        __isrNV[i].isr = &__irq_dummyNvISR;  /* dummy ISR routine */
+        __isrNV[i].param = NULL;             /* no paramater */ 
+        __isrNV[i].priority = -1;            /* lowest priority */
     }
     
     /* set IRQ handling to non vectored mode */

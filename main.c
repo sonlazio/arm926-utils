@@ -305,7 +305,7 @@ static void rtcTest(void)
     uart_print(0, "Expecting a RTC interrupt in 7 seconds...\r\n");
     
     /* Enable necessary controllers: */
-    pic_registerNonVectoredIrq(IRQ_RTC, &rtcISR, (void*) &__tick_cntr);
+    pic_registerNonVectoredIrq(IRQ_RTC, &rtcISR, (void*) &__tick_cntr, 10);
     irq_enableIrqMode();    
     pic_enableInterrupt(IRQ_RTC);
     rtc_enableInterrupt();
@@ -396,7 +396,7 @@ static void swIntTest(void)
     __tick_cntr = 0;
     
     /* register ISR for IRQ 1 */
-    pic_registerNonVectoredIrq(irq, &swISR, (void*) &__tick_cntr);
+    pic_registerNonVectoredIrq(irq, &swISR, (void*) &__tick_cntr, 10);
     
     /* 
      * To reduce overhead, obtain direct address of the timer's Value Register.
@@ -436,6 +436,7 @@ static void swIntTest(void)
 }
 
 
+extern void __printNvTable(void);
 /*
  * Starting point of the application.
  * 

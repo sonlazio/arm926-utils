@@ -47,10 +47,11 @@ void irq_enableIrqMode(void);
 
 void irq_disableIrqMode(void);
 
-int8_t pic_registerNonVectoredIrq( uint8_t irq, 
-                                   pNonVectoredIsrPrototype addr, 
-                                   void* param, 
-                                   uint8_t priority);
+int8_t pic_registerNonVectoredIrq( 
+                                 uint8_t irq, 
+                                 pNonVectoredIsrPrototype addr, 
+                                 void* param, 
+                                 uint8_t priority );
 
 void pic_unregisterNonVectoredIrq(uint8_t irq);
 
@@ -70,7 +71,10 @@ void pic_setInterruptType(uint8_t irq, int8_t toIrq);
  
 void pic_setDefaultVectorAddr(pVectoredIsrPrototype addr);
 
-int8_t pic_registerVectorIrq(uint8_t irq, pVectoredIsrPrototype addr);
+int8_t pic_registerVectorIrq(
+                               uint8_t irq, 
+                               pVectoredIsrPrototype addr,
+                               uint8_t priority );
 
 void pic_unregisterVectorIrq(uint8_t irq);
 

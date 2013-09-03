@@ -135,15 +135,15 @@ static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_B
  * and pointers to routines' parameters if applicable.
  * The table is used for non vectored interrupt handling only.
  */
-typedef struct _isrRecord
+typedef struct _isrNvRecord
 {
     int8_t irq;                      /* IRQ handled by this record */
     pNonVectoredIsrPrototype isr;    /* address of the ISR */
     void* param;                     /* void* casted pointer to isr's paramter (if applicable) */
     int8_t priority;                 /* priority of this IRQ */
-} isrRecord;
+} isrNvRecord;
 
-static isrRecord __isrNV[NR_INTERRUPTS];
+static isrNvRecord __isrNV[NR_INTERRUPTS];
 
 
 /*
@@ -152,7 +152,14 @@ static isrRecord __isrNV[NR_INTERRUPTS];
  * does not serve any IRQ. In this case, the corresponding VICVECTCNTLn is
  * supposed to be set ot 0 and its VICVECTADDRn should be set to __irq_dummyISR.
  */
-static int8_t __irqVect[NR_VECTORS];
+typedef struct _isrVectRecord
+{
+    int8_t irq;                   /* IRQ handled by this record */
+    pVectoredIsrPrototype isr;    /* address of the ISR */
+    int8_t priority;              /* priority of this IRQ */
+} isrVectRecord;
+
+static isrVectRecord __irqVect[NR_INTERRUPTS];
 
 
 /*
@@ -248,6 +255,43 @@ static void __irq_dummyNvISR(void* param)
 
 
 /*
+ * Default handler of vectored IRQs. Typically the address of this function should be 
+ * set as a default value to pPicReg->VICDEFVECTADDR. It handles IRQs whose ISRs are note
+ * entered into vectored registers. It is very similar to nen vectored handling of IRQs.
+ */
+static void __defaultVectorIsr(void)
+{
+    uint8_t cntr;
+    
+    /*
+     * TODO should scanning of the priority table start at 16 or maybe at 0 ????
+     * 
+     * The current implementation assumes that the first 16 entries are properly serviced
+     * and also enabled in their respective VICVECTCNTLn registers. 
+     */
+    for ( cntr=NR_VECTORS; cntr<NR_INTERRUPTS; ++cntr )
+    {
+        if ( __irqVect[cntr].irq>=0 && 
+             __irqVect[cntr].irq<NR_INTERRUPTS &&
+             pPicReg->VICINTENABLE & (UL1 << __irqVect[cntr].irq) )
+        {
+            ( *__irqVect[cntr].isr )();
+            break;  /* out of for cntr */
+        }
+    }  /* for cntr */
+    
+    /*
+     * The current implementation executes one ISR per call of this function.
+     * If no appropriate ISR can be found, execute a dummy ISR.
+     */
+    if ( cntr >= NR_INTERRUPTS )
+    {
+        __irq_dummyISR();
+    }
+}
+
+
+/*
  * IRQ handler routine, called directly from the IRQ vector, implemented in exception.c
  * Prototype of this function is not public and should not be exposed in a .h file. Instead,
  * its prototype must be declared as 'extern' where required (typically in exception.c only).
@@ -331,7 +375,7 @@ void _pic_IrqHandler(void)
 
 
 /**
- * Registers an interrupt routine service (ISR) for the specified IRQ request.
+ * Registers an interrupt service routine (ISR) for the specified IRQ request.
  * It is applicable for non-vectored IRQ handling only!
  * 
  * Nothing is done if either 'irq' (equal or greater than 32) or 'addr' (equal to NULL)
@@ -340,7 +384,7 @@ void _pic_IrqHandler(void)
  * Entries are internally sorted in descending order by priority.
  * Entries with the same priority are additionally sorted by the time of registration
  * (entries registered earlier are ranked higher).
- * if 'irq' has already been registered, its internal entry will be overriden with 
+ * If 'irq' has already been registered, its internal entry will be overriden with 
  * new values and resorted by priority.
  *
  * @note IRQ handling should be completely disabled prior to calling this function!
@@ -354,10 +398,11 @@ void _pic_IrqHandler(void)
  *
  * @return position of the IRQ handling entry within an internal table, a negative value if registration was unsuccessful
  */ 
-int8_t pic_registerNonVectoredIrq( uint8_t irq,
-                                   pNonVectoredIsrPrototype addr,
-                                   void* param,
-                                   uint8_t priority )
+int8_t pic_registerNonVectoredIrq( 
+                                 uint8_t irq,
+                                 pNonVectoredIsrPrototype addr,
+                                 void* param,
+                                 uint8_t priority )
 {
     const uint8_t prior = priority & 0x7F;
     int8_t irqPos = -1;
@@ -367,7 +412,7 @@ int8_t pic_registerNonVectoredIrq( uint8_t irq,
     /* sanity check */
     if ( irq>=NR_INTERRUPTS || NULL==addr )
     {
-        return;
+        return -1;
     }
     
     /*
@@ -393,7 +438,7 @@ int8_t pic_registerNonVectoredIrq( uint8_t irq,
     /* just in case, should never occur */    
     if ( irqPos>=NR_INTERRUPTS || irqPos<0 || prPos<0 )
     {
-        return;
+        return -1;
     }
     
     /* if prPos is less than irqPos, move all intermediate entries one line down */
@@ -503,17 +548,23 @@ void pic_init(void)
     pPicReg->VICSOFTINTCLEAR = 0xFFFFFFFF;
     
     /* Reset the default vector address: */
-    pPicReg->VICDEFVECTADDR = (uint32_t) &__irq_dummyISR;;
+    pPicReg->VICDEFVECTADDR = (uint32_t) &__defaultVectorIsr;
     
-    /* for each vector: */
-    for ( i=0; i<NR_VECTORS; ++i )
+    /* clear all vectored ISR addresses: */
+    for ( i=0; i<NR_INTERRUPTS; ++i )
     {
         /* clear its entry in the table */
-        __irqVect[i] = -1;
-        /* clear its control register */
-        pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        /* and clear its ISR address to a dummy function */
-        pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
+        __irqVect[i].irq = -1;                 /* no IRQ assigned */
+        __irqVect[i].isr = &__irq_dummyISR;    /* dummy ISR routine */
+        __irqVect[i].priority = -1;            /* lowest priority */
+        
+        if ( i<NR_VECTORS )
+        {
+            /* clear its control register */
+            pPicReg->VICVECTCNTLn[i] = 0x00000000;
+            /* and clear its ISR address to a dummy function */
+            pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
+        }
     }
     
     /* clear all nonvectored ISR addresses: */
@@ -683,69 +734,144 @@ void pic_setDefaultVectorAddr(pVectoredIsrPrototype addr)
  * Registers a vector interrupt ISR for the requested interrupt request line.
  * The vectored interrupt is enabled by default.
  *
- * If the irq has already been registered, it is enabled and its ISR address 
- * is overridden with the new one.
- *
  * Nothing is done and -1 is returned if either 'irq' is invalid (must be less than 32) 
  * or ISR's address is NULL.
  *
+ * Entries are internally sorted in descending order by priority.
+ * Entries with the same priority are additionally sorted by the time of registration
+ * (entries registered earlier are ranked higher).
+ * If 'irq' has already been registered, its internal entry will be overriden with
+ * new values and resorted by priority.
+ * The first 16 entries, soerted by priority, are automatically entered into appropriate vector
+ * registers of the primary interrupt controller.
+ * 
+ * @note IRQ handling should be completely disabled prior to calling this function!
+ * 
  * @param irq - interrupt number (must be smaller than 32)
- * @param addr - address of the ISR
+ * @param addr - address of the ISR that services the interrupt 'irq'
+ * @param priority - priority of handling this IRQ (higher value means higher priority), the actual priority
+ *                   will be silently truncated to 127 if this value is exceeded.
  *
- * @return interrupt's vector slot (0 to 15) or -1 if no slot is available
+ * @return position of the IRQ handling entry within an internal table, a negative value if registration was unsuccessful
  */
-int8_t pic_registerVectorIrq(uint8_t irq, pVectoredIsrPrototype addr)
+int8_t pic_registerVectorIrq(
+                              uint8_t irq, 
+                              pVectoredIsrPrototype addr,
+                              uint8_t priority )
 {
-    uint8_t cntr;
-    int8_t empty;
+    const prior = priority & 0x7F;
+    int8_t irqPos = -1;
+    int8_t prPos = -1;
+    int8_t i;
     
     /* sanity check: */
     if (irq>=NR_INTERRUPTS || NULL==addr )
     {
         return -1;
     }
+      
+    /*
+     * The priority table is traversed and two values are obtained:
+     * - irqPos: index of the existing 'irq' or the first "empty" line
+     * - prPos: index of the first entry whose priority is not larger or equal than 'prior'
+     * The entry will be inserted into prPos, prior to that, all entries between 'irqPos and 'prPos'
+     * will be moved one line up or down.
+     */
     
-    /* Find either a slot with the 'irq' or the first empty slot: */
-    for ( empty=-1, cntr=0; cntr<NR_VECTORS; ++cntr )
+    for ( i=0; i<NR_INTERRUPTS; ++i )
     {
-        if ( __irqVect[cntr] < 0 )
+        if ( irqPos<0 && (__irqVect[i].irq<0 || __irqVect[i].irq==irq) )
         {
-            if ( empty<0 )
-            {
-                empty = (int8_t) cntr;
-            }
-            
-            continue;  /* for cntr */
+            irqPos = i;
         }
         
-        if ( irq == __irqVect[cntr] )
+        if ( prPos<0 && (__irqVect[i].priority<0 || __irqVect[i].priority<prior) )
         {
-            break;  /* out of for cntr */
+            prPos = i;
         }
-
-    } /* for cntr */
+    }  /* for i */
     
-    if ( cntr >= NR_VECTORS )
+    /* just in case, should never occur */
+    if ( irqPos>=NR_INTERRUPTS || irqPos<0 || prPos<0 )
     {
-        /* no occurrence of irq found, use an empty slot if it exists: */
-        if (empty<0)
-        {
-            /* no available slots */
-            return -1;
-        }
-        
-        cntr = (uint8_t) empty;
+        return -1;
     }
     
-    /* Enter 'irq' into the table: */
-    __irqVect[cntr] = irq;
+    /* if prPos is less than irqPos, move all intermediate entries one line down */
+    if ( irqPos > prPos )
+    {
+        for ( i=irqPos; i>prPos; --i )
+        {
+            __irqVect[i] = __irqVect[i-1];
+            
+            /* for i<16 also update PIC's vector address and control registers */
+            if ( i<NR_VECTORS )
+            {
+                if ( __irqVect[i].irq >= 0 )
+                {
+                    pPicReg->VICVECTCNTLn[i] = __irqVect[i].irq | BM_VECT_ENABLE_BIT;
+                    pPicReg->VICVECTADDRn[i] = (uint32_t) __irqVect[i].isr;
+                }
+                else
+                {
+                    /* if i^th line is "empty", clear the appropriate vector registers */
+                    pPicReg->VICVECTCNTLn[i] = 0x00000000;
+                    pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
+                }
+            }  /* if i < NR_VECTORS */
+        }  /* for i*/
+    }  /* if irqPos > prPos */
     
-    /* Assign the ISR's address: */
-    pPicReg->VICVECTADDRn[cntr] = (uint32_t) addr;
-    /* Assign the request line and enable the IRQ: */
-    pPicReg->VICVECTCNTLn[cntr] = irq | BM_VECT_ENABLE_BIT;
+    /* if prPos is greater than irqPos, move all intermediate entries one line up... */
+    if ( prPos > irqPos )
+    {
+        /* however this does not include the entry at prPos, whose priority is less than prior!!!*/
+        --prPos;
+        
+        for ( i=irqPos; i<prPos; ++i )
+        {
+            __irqVect[i] = __irqVect[i+1];
+            
+            /* for i<16 also update PIC's vector address and control registers */
+            if ( i<NR_VECTORS )
+            {
+                if ( __irqVect[i].irq >= 0 )
+                {
+                    pPicReg->VICVECTCNTLn[i] = __irqVect[i].irq | BM_VECT_ENABLE_BIT;
+                    pPicReg->VICVECTADDRn[i] = (uint32_t) __irqVect[i].isr;
+                }
+                else
+                {
+                    /* if i^th line is "empty", clear the appropriate vector registers */
+                    pPicReg->VICVECTCNTLn[i] = 0x00000000;
+                    pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
+                }
+            }  /* if i < NR_VECTORS */
+        }  /* for i */
+    }  /* if prPos > irqPos */
     
-    return cntr;
+    /* finally fill the entry at 'prPos' with the input values */
+    __irqVect[prPos].irq = irq;
+    __irqVect[prPos].isr = addr;
+    __irqVect[prPos].priority = prior;
+    
+    /* if prPos<16 also update the appropriate vector registers */
+    if ( prPos < NR_VECTORS )
+    {
+        if ( irq >= 0 )
+        {
+            pPicReg->VICVECTCNTLn[prPos] = irq | BM_VECT_ENABLE_BIT;
+            pPicReg->VICVECTADDRn[prPos] = (uint32_t) addr;
+        }
+        else
+        {
+            pPicReg->VICVECTCNTLn[prPos] = 0x00000000;
+            pPicReg->VICVECTADDRn[prPos] = (uint32_t) &__irq_dummyISR;
+        }
+    }
+    
+    
+    return prPos;
 }
 
 
@@ -755,40 +881,65 @@ int8_t pic_registerVectorIrq(uint8_t irq, pVectoredIsrPrototype addr)
  * Nothing is done if 'irq' is invalid, i.e. equal or greater than 32 or
  * no vector for the 'irq' exists.
  *
+ * @note IRQ handling should be completely disabled prior to calling this function!
+ * 
  * @param irq - interrupt number (must be smaller than 32)
  */
 void pic_unregisterVectorIrq(uint8_t irq)
 {
-    uint8_t i;
+    uint8_t pos;
     
+    /* sanity check */
     if (irq>=NR_INTERRUPTS)
     {
         return;
     }
     
-    for ( i=0; i<NR_VECTORS; ++i )
+    
+    /* Find the 'irq' in the priority table: */
+    for ( pos=0; pos<NR_INTERRUPTS; ++pos )
     {
-        if ( irq != __irqVect[i] )
+        if ( __irqVect[pos].irq == irq )
         {
-            /* This slot is not configured for the requested irq, skip it */
-            continue;  /* for i */
+            break; /* out of for pos */
         }
-
-        /* 
-         * If this point is reached, the slot is configured for the irq.
-         * Reset its VICVECTCNTLn and VICVECTADDRn.         
-         */
-        pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
+    }
+    
+    /* Nothing to do if IRQ has not been found: */
+    if ( pos>=NR_INTERRUPTS )
+    {
+        return;
+    }
+    
+    /*
+     * Shift all entries past 'pos' (including invalid ones) one line up.
+     * This will override the entry at 'pos'.
+     */
+    for ( ; pos<NR_INTERRUPTS-1; ++pos )
+    {
+        __irqVect[pos] = __irqVect[pos+1];
         
-        /* And delete the irq from the table */
-        __irqVect[i] = -1;
-        
-        /* 
-         * There is no break and all 16 slots are checked just in case the same IRQ has been
-         * registered several times (should not occur but it's still better to handle it.)
-         */
-    }  /* for i */
+        if ( pos<NR_VECTORS )
+        {
+            /* for pos<16 also update PIC's vector address and control registers */
+            if ( __irqVect[pos].irq >= 0 )
+            {
+                pPicReg->VICVECTCNTLn[pos] = __irqVect[pos].irq | BM_VECT_ENABLE_BIT;
+                pPicReg->VICVECTADDRn[pos] = (uint32_t) __irqVect[pos].isr;
+            }
+            else
+            {
+                /* if pos^th line is "empty", clear the appropriate vector registers */
+                pPicReg->VICVECTCNTLn[pos] = 0x00000000;
+                pPicReg->VICVECTADDRn[pos] = (uint32_t) &__irq_dummyISR;
+            }
+        }
+    }
+    
+    /* And "clear" the last entry to "default" values (see also pic_init()): */
+    __irqVect[NR_INTERRUPTS-1].irq = -1;               /* no IRQ assigned */
+    __irqVect[NR_INTERRUPTS-1].isr = &__irq_dummyISR;  /* dummy ISR routine */
+    __irqVect[NR_INTERRUPTS-1].priority = -1;          /* lowest priority */
 }
 
 
@@ -814,7 +965,7 @@ int8_t pic_enableVectorIrq(uint8_t irq)
     /* Find a slot with the requested irq: */
     for ( cntr=0; cntr<NR_VECTORS; ++cntr )
     {
-        if ( irq == __irqVect[cntr] )
+        if ( irq == __irqVect[cntr].irq )
         {
             /* found, set its ENABLE bit in VICVECTCNTLn: */
             pPicReg->VICVECTCNTLn[cntr] |= BM_VECT_ENABLE_BIT;
@@ -846,7 +997,7 @@ void pic_disableVectorIrq(uint8_t irq)
     
     for ( cntr=0; cntr<NR_VECTORS; ++cntr )
     {
-        if ( irq == __irqVect[cntr] )
+        if ( irq == __irqVect[cntr].irq )
         {
             /* found an occurrence of irq, unset its ENABLE bit in VICVECTCNTLn: */
             pPicReg->VICVECTCNTLn[cntr] &= ~BM_VECT_ENABLE_BIT;
@@ -867,12 +1018,19 @@ void pic_unregisterAllVectorIrqs(void)
 {
     uint8_t i;
     
-    /* Clear all vector's VICVECTCNTLn and VICVECTADDRn registers: */
+    /* Clear all entries in the priority table */
     for ( i=0; i<NR_VECTORS; ++i )
     {
-        pPicReg->VICVECTCNTLn[i] = 0x00000000;
-        pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
-        __irqVect[i] = -1;
+        __irqVect[i].irq = -1;
+        __irqVect[i].isr = &__irq_dummyISR;
+        __irqVect[i].priority = -1;
+        
+        /* Clear all vector's VICVECTCNTLn and VICVECTADDRn registers: */
+        if ( i<NR_VECTORS )
+        {
+            pPicReg->VICVECTCNTLn[i] = 0x00000000;
+            pPicReg->VICVECTADDRn[i] = (uint32_t) &__irq_dummyISR;
+        }
     }
 }
 

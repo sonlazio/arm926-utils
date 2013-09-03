@@ -228,7 +228,7 @@ static void timerVectIrqTest(void)
     _pic_set_irq_vector_mode(1);
     
     /* Assign the ISR routine for the IRQ 4, triggered by timers 0 and 1 */
-    pic_registerVectorIrq(IRQ_TIMER0, &timer0ISR);
+    pic_registerVectorIrq(IRQ_TIMER0, &timer0ISR, 10);
     
     /* Enable IRQ mode */
     irq_enableIrqMode();
@@ -445,7 +445,7 @@ static void swIntTest(void)
 void start(void)
 {
     uart_init(0);
-    
+     
     uart_print(0, "* * * T E S T   S T A R T * * *\r\n");
     
     timersEnabledTest();

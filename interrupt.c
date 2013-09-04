@@ -37,12 +37,11 @@ limitations under the License.
 #include <stdint.h>
 #include <stddef.h>
 
-#include "base_address.h"
+#include "bsp.h"
 
 /* For public definitions of types: */
 #include "interrupt.h"
 
-#include "peripheral_irqs.h"
 
 
 /*
@@ -126,8 +125,8 @@ typedef struct _ARM926EJS_SIC_REGS
 #define NR_INTERRUPTS   32
 
 
-static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (PIC_BASE);
-/* static volatile ARM926EJS_SIC_REGS* const pSicReg = (ARM926EJS_SIC_REGS*) (SIC_BASE); */
+static volatile ARM926EJS_PIC_REGS* const pPicReg = (ARM926EJS_PIC_REGS*) (BSP_PIC_BASE_ADDRESS);
+/* static volatile ARM926EJS_SIC_REGS* const pSicReg = (ARM926EJS_SIC_REGS*) (BSP_SIC_BASE_ADDRESS); */
 
 
 /*
@@ -742,7 +741,7 @@ void pic_setDefaultVectorAddr(pVectoredIsrPrototype addr)
  * (entries registered earlier are ranked higher).
  * If 'irq' has already been registered, its internal entry will be overriden with
  * new values and resorted by priority.
- * The first 16 entries, soerted by priority, are automatically entered into appropriate vector
+ * The first 16 entries, sorted by priority, are automatically entered into appropriate vector
  * registers of the primary interrupt controller.
  * 
  * @note IRQ handling should be completely disabled prior to calling this function!
@@ -1140,7 +1139,7 @@ int8_t pic_clearSwInterruptNr(uint8_t irq)
  */
 int8_t pic_setSoftwareInterrupt(void)
 {
-    return pic_setSwInterruptNr(IRQ_SOFTWARE);
+    return pic_setSwInterruptNr(BSP_SOFTWARE_IRQ);
 }
 
 
@@ -1151,5 +1150,5 @@ int8_t pic_setSoftwareInterrupt(void)
  */
 int8_t pic_clearSoftwareInterrupt(void)
 {
-    return pic_clearSwInterruptNr(IRQ_SOFTWARE);
+    return pic_clearSwInterruptNr(BSP_SOFTWARE_IRQ);
 }

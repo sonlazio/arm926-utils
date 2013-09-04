@@ -32,7 +32,7 @@ limitations under the License.
 #include <stdint.h>
 #include <stddef.h>
 
-#include "base_address.h"
+#include "bsp.h"
 
 
 /*
@@ -164,16 +164,16 @@ typedef struct _ARM926EJS_UART_REGS
 /* Shared UART register: */
 #define UARTECR       UARTRSR
 
-/* Number of UARTS on the ARM Versatile Application Board: */
-#define NR_UARTS      3
 
+#define GEN_CAST_ADDR(ADDR)    (ARM926EJS_UART_REGS*) (ADDR),
 
-static volatile ARM926EJS_UART_REGS* const pReg[NR_UARTS] = 
-                    {
-                        (ARM926EJS_UART_REGS*) (UART0_BASE),
-                        (ARM926EJS_UART_REGS*) (UART1_BASE),
-                        (ARM926EJS_UART_REGS*) (UART2_BASE)
-                    };
+static volatile ARM926EJS_UART_REGS* const  pReg[BSP_NR_UARTS]=
+                         {
+                             BSP_UART_BASE_ADDRESSES(GEN_CAST_ADDR)
+                         };
+
+#undef GEN_CAST_ADDR
+
 
 /**
  * Initializes a UART controller.
@@ -187,7 +187,7 @@ static volatile ARM926EJS_UART_REGS* const pReg[NR_UARTS] =
 void uart_init(uint8_t nr)
 {
     /* Sanity check */
-    if ( nr >= NR_UARTS )
+    if ( nr >= BSP_NR_UARTS )
     {
         return;
     }
@@ -290,7 +290,7 @@ static inline void __printCh(uint8_t nr, char ch)
 void uart_printChar(uint8_t nr, char ch)
 {
     /* Sanity check */
-    if ( nr >= NR_UARTS )
+    if ( nr >= BSP_NR_UARTS )
     {
         return;
     }
@@ -320,7 +320,7 @@ void uart_print(uint8_t nr, const char* str)
     const char* cp;
     
     /* Sanity check */
-    if ( nr >= NR_UARTS )
+    if ( nr >= BSP_NR_UARTS )
     {
         return;
     }
@@ -348,7 +348,7 @@ void uart_print(uint8_t nr, const char* str)
 void uart_enableUart(uint8_t nr)
 {
     /* Sanity check */
-    if ( nr >= NR_UARTS )
+    if ( nr >= BSP_NR_UARTS )
     {
         return;
     }
@@ -367,7 +367,7 @@ void uart_enableUart(uint8_t nr)
 void uart_disableUart(uint8_t nr)
 {
     /* Sanity check */
-    if ( nr >= NR_UARTS )
+    if ( nr >= BSP_NR_UARTS )
     {
         return;
     }
@@ -391,7 +391,7 @@ static inline void __setCrBit(uint8_t nr, int8_t set, uint32_t bitmask)
     uint32_t enabled;
     
     /* Sanity check */
-    if ( nr >= NR_UARTS )
+    if ( nr >= BSP_NR_UARTS )
     {
         return;
     }

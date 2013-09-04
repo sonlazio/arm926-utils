@@ -33,11 +33,9 @@ limitations under the License.
 #include <stdint.h>
 #include <stddef.h>
 
-#include "base_address.h"
+#include "bsp.h"
 
 
-/* Number of timers: */
-#define NR_TIMERS        2
 /* Number of counters per timer: */
 #define NR_COUNTERS      2
 
@@ -101,14 +99,16 @@ typedef struct _ARM926EJS_TIMER_REGS
 
 
 /*
- * Pointers to each timer register's base addresses:
+ * Pointers to all timer registers' base addresses:
  */
-static volatile ARM926EJS_TIMER_REGS* const   pReg[NR_TIMERS] = 
-                          { 
-                               (ARM926EJS_TIMER_REGS*) (TIMER0_BASE),
-                               (ARM926EJS_TIMER_REGS*) (TIMER1_BASE)
-                          };
+#define GEN_CAST_ADDR(ADDR)    (ARM926EJS_TIMER_REGS*) (ADDR),
 
+static volatile ARM926EJS_TIMER_REGS* const  pReg[BSP_NR_TIMERS]=
+                         {
+                             BSP_TIMER_BASE_ADDRESSES(GEN_CAST_ADDR)
+                         };
+
+#undef GEN_CAST_ADDR
 
 /**
  * Initializes the specified timer's counter controller.
@@ -128,7 +128,7 @@ void timer_init(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -177,7 +177,7 @@ void timer_start(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -199,7 +199,7 @@ void timer_stop(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -227,7 +227,7 @@ int8_t timer_isEnabled(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return 0;
     }
@@ -249,7 +249,7 @@ void timer_enableInterrupt(uint8_t timerNr, uint8_t counterNr)
 {
  
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -271,7 +271,7 @@ void timer_disableInterrupt(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -293,7 +293,7 @@ void timer_clearInterrupt(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -325,7 +325,7 @@ void timer_setLoad(uint8_t timerNr, uint8_t counterNr, uint32_t value)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -349,7 +349,7 @@ uint32_t timer_getValue(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return 0UL;
     }
@@ -376,7 +376,7 @@ const volatile uint32_t* timer_getValueAddr(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
+    if ( timerNr >= BSP_NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return NULL;
     }

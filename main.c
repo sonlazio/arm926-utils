@@ -26,7 +26,8 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
-#include "peripheral_irqs.h"
+#include "bsp.h"
+
 #include "interrupt.h"
 #include "uart.h"
 #include "timer.h"
@@ -218,22 +219,25 @@ extern void _pic_set_irq_vector_mode(int8_t mode);
  */
 static void timerVectIrqTest(void)
 {
+    const uint8_t irqs[BSP_NR_TIMERS] = BSP_TIMER_IRQS;
+    uint8_t irq;
 
     uart_print(0, "\r\n=Timer vectored IRQ test:=\r\n\r\n");
     
     /* Initialize the PIC */
     pic_init();
+    irq = irqs[0];
     
     _pic_set_irq_vector_mode(1);
     
     /* Assign the ISR routine for the IRQ 4, triggered by timers 0 and 1 */
-    pic_registerVectorIrq(IRQ_TIMER0, &timer0ISR, 10);
+    pic_registerVectorIrq(irq, &timer0ISR, 10);
     
     /* Enable IRQ mode */
     irq_enableIrqMode();
     
     /* Enable IRQ4 */
-    pic_enableInterrupt(IRQ_TIMER0);
+    pic_enableInterrupt(irq);
     
     /* Initialize the timer 0 to triggger IRQ 4 every 1000000 micro seconds, i.e. every 1 s */
     timer_init(0, 0);
@@ -252,7 +256,7 @@ static void timerVectIrqTest(void)
     __tick_cntr = 0;
     timer_disableInterrupt(0, 0);
     timer_stop(0, 0);
-    pic_disableInterrupt(IRQ_TIMER0);
+    pic_disableInterrupt(irq);
     
     /* Disable IRQ mode */
     irq_disableIrqMode();
@@ -304,9 +308,9 @@ static void rtcTest(void)
     uart_print(0, "Expecting a RTC interrupt in 7 seconds...\r\n");
     
     /* Enable necessary controllers: */
-    pic_registerNonVectoredIrq(IRQ_RTC, &rtcISR, (void*) &__tick_cntr, 10);
+    pic_registerNonVectoredIrq(BSP_RTC_IRQ, &rtcISR, (void*) &__tick_cntr, 10);
     irq_enableIrqMode();    
-    pic_enableInterrupt(IRQ_RTC);
+    pic_enableInterrupt(BSP_RTC_IRQ);
     rtc_enableInterrupt();
     
     /* Start the RTC */
@@ -329,7 +333,7 @@ static void rtcTest(void)
     
     /* Clean up, disable controllers, etc. */
     rtc_disableInterrupt();
-    pic_disableInterrupt(IRQ_RTC);
+    pic_disableInterrupt(BSP_RTC_IRQ);
     irq_disableIrqMode();
     
     /* Finally verify that the RTC indeed triggered an IRQ after approx. 7 seconds */
@@ -367,7 +371,7 @@ static void swISR(void* param)
     }
     
     /* And acknowledge the interrupt */
-    if ( pic_clearSwInterruptNr(IRQ_SOFTWARE) < 0 )
+    if ( pic_clearSwInterruptNr(BSP_SOFTWARE_IRQ) < 0 )
     {
         uart_print(0, "Could not clear SW interrupt\r\n");
     }
@@ -380,7 +384,7 @@ static void swISR(void* param)
 static void swIntTest(void)
 {
     const uint8_t nr = 2;                    /* timer nr. */
-    const uint8_t irq = IRQ_SOFTWARE;
+    const uint8_t irq = BSP_SOFTWARE_IRQ;
     const uint32_t timerLd = 1000000;
     const uint8_t nrTicks = 10;
     const volatile uint32_t* pVal;

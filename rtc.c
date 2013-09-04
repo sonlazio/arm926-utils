@@ -31,7 +31,7 @@ limitations under the License.
 
 #include <stdint.h>
 
-#include "base_address.h"
+#include "bsp.h"
 
 
 /* Bit mask of the RTCCR that starts the RTC: */
@@ -69,7 +69,7 @@ typedef struct _ARM926EJS_RTC_REGS
 /*
  * Pointer to the RTC base address:
  */
-static volatile ARM926EJS_RTC_REGS* const pReg = (ARM926EJS_RTC_REGS*) (RTC_BASE);
+static volatile ARM926EJS_RTC_REGS* const pReg = (ARM926EJS_RTC_REGS*) (BSP_RTC_BASE_ADDRESS);
 
 
 /**

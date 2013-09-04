@@ -37,7 +37,9 @@ limitations under the License.
 
 
 /* Number of timers: */
-#define N_TIMERS        4
+#define NR_TIMERS        2
+/* Number of counters per timer: */
+#define NR_COUNTERS      2
 
 
 /*
@@ -65,11 +67,10 @@ limitations under the License.
 
 
 /*
- * 32-bit registers of individual timer controllers,
- * relative to the controllers' base address:
+ * 32-bit registers of each counter within a timer controller.
  * See page 3-2 of DDI0271:
  */
-typedef struct _ARM926EJS_TIMER_REGS 
+typedef struct _SP804_COUNTER_REGS 
 {
     uint32_t LOAD;                   /* Load Register, TimerXLoad */
     const uint32_t VALUE;            /* Current Value Register, TimerXValue, read only */
@@ -78,38 +79,56 @@ typedef struct _ARM926EJS_TIMER_REGS
     uint32_t RIS;                    /* Raw Interrupt Status Register, TimerXRIS, read only */
     uint32_t MIS;                    /* Masked Interrupt Status Register, TimerXMIS, read only */
     uint32_t BGLOAD;                 /* Background Load Register, TimerXBGLoad */
+    const uint32_t Unused;           /* Unused, should not be modified */
+} SP804_COUNTER_REGS;
+
+
+/*
+ * 32-bit registers of individual timer controllers,
+ * relative to the controllers' base address:
+ * See page 3-2 of DDI0271:
+ */
+typedef struct _ARM926EJS_TIMER_REGS
+{
+    SP804_COUNTER_REGS CNTR[NR_COUNTERS];     /* Registers for each of timer's two counters */
+    const uint32_t Reserved1[944];            /* Reserved for future expansion, should not be modified */
+    uint32_t ITCR;                            /* Integration Test Control Register */
+    uint32_t ITOP;                            /* Integration Test Output Set Register, write only */
+    const Reserved2[54];                      /* Reserved for future expansion, should not be modified */
+    const uint32_t PERIPHID[4];               /* Timer Peripheral ID, read only */
+    const uint32_t CELLID[4];                 /* PrimeCell ID, read only */
 } ARM926EJS_TIMER_REGS;
+
 
 /*
  * Pointers to each timer register's base addresses:
  */
-static volatile ARM926EJS_TIMER_REGS* const    timerReg[N_TIMERS] = 
+static volatile ARM926EJS_TIMER_REGS* const   pReg[NR_TIMERS] = 
                           { 
                                (ARM926EJS_TIMER_REGS*) (TIMER0_BASE),
-                               (ARM926EJS_TIMER_REGS*) (TIMER1_BASE),
-                               (ARM926EJS_TIMER_REGS*) (TIMER2_BASE),
-                               (ARM926EJS_TIMER_REGS*) (TIMER3_BASE)
+                               (ARM926EJS_TIMER_REGS*) (TIMER1_BASE)
                           };
 
 
 /**
- * Initializes the specified timer controller.
+ * Initializes the specified timer's counter controller.
  * The following parameters are set:
  * - periodic mode (when the counter reaches 0, it is wrapped to the value of the Load Register)
  * - 32-bit counter length
  * - prescale = 1
  * 
- * This function does not enable interrupt triggering and does not start the timer!
+ * This function does not enable interrupt triggering and does not start the counter!
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  */
-void timer_init(uint8_t nr)
+void timer_init(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -129,7 +148,7 @@ void timer_init(uint8_t nr)
      * - counter length (32-bit) 
      */
     
-    timerReg[nr]->CONTROL |= ( CTL_MODE | CTL_CTRLEN );
+    pReg[timerNr]->CNTR[counterNr].CONTROL |= ( CTL_MODE | CTL_CTRLEN );
     
     /*
      * The following bits are will be to 0:
@@ -139,134 +158,142 @@ void timer_init(uint8_t nr)
      * - oneshot bit (wrapping mode)
      */
     
-    timerReg[nr]->CONTROL &= ( ~CTL_ENABLE & ~CTL_INTR & ~CTL_PRESCALE_1 & ~CTL_PRESCALE_2 & ~CTL_ONESHOT );
+    pReg[timerNr]->CNTR[counterNr].CONTROL &= 
+            ( ~CTL_ENABLE & ~CTL_INTR & ~CTL_PRESCALE_1 & ~CTL_PRESCALE_2 & ~CTL_ONESHOT );
     
     /* reserved bits remained unmodifed */
 }
 
 
 /**
- * Starts the specified timer.
+ * Starts the specified timer's counter.
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  */
-void timer_start(uint8_t nr)
+void timer_start(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
 
     /* Set bit 7 of the Control Register to 1, do not modify other bits */
-    timerReg[nr]->CONTROL |= CTL_ENABLE;
+    pReg[timerNr]->CNTR[counterNr].CONTROL |= CTL_ENABLE;
 }
 
 
 /**
- * Stops the specified timer.
+ * Stops the specified timer's counter.
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  */
-void timer_stop(uint8_t nr)
+void timer_stop(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
     
     /* Set bit 7 of the Control Register to 0, do not modify other bits */
-    timerReg[nr]->CONTROL &= ~CTL_ENABLE;
+    pReg[timerNr]->CNTR[counterNr].CONTROL &= ~CTL_ENABLE;
 }
 
 
 /**
- * Checks whether the specified timer is enabled, i.e. running.
+ * Checks whether the specified timer's counter is enabled, i.e. running.
  * 
  * If it is enabled, a nonzero value, typically 1, is returned,
  * otherwise a zero value is returned.
+ *
+ * If either 'timerNr' or 'counterNr' is invalid, a zero is returned 
+ * (as an invalid timer/counter cannot be enabled).
  * 
- * If 'nr' is invalid, a zero is returned (as an invalid timer cannot be enabled).
- * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  * 
  * @return a zero value if the timer is disabled, a nonzero if it is enabled
  */ 
-int8_t timer_isEnabled(uint8_t nr)
+int8_t timer_isEnabled(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return 0;
     }
     
     /* just check the enable bit of the timer's Control Register */
-    return ( 0==(timerReg[nr]->CONTROL & CTL_ENABLE) ? 0 : 1 );
+    return ( 0==(pReg[timerNr]->CNTR[counterNr].CONTROL & CTL_ENABLE) ? 0 : 1 );
 }
 
 
 /**
  * Enables the timer's interrupt triggering (when the counter reaches 0).
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  */
-void timer_enableInterrupt(uint8_t nr)
+void timer_enableInterrupt(uint8_t timerNr, uint8_t counterNr)
 {
  
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
     
     /* Set bit 5 of the Control Register to 1, do not modify other bits */
-    timerReg[nr]->CONTROL |= CTL_INTR;
+    pReg[timerNr]->CNTR[counterNr].CONTROL |= CTL_INTR;
 }
 
 
 /**
  * Disables the timer's interrupt triggering (when the counter reaches 0).
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  */
-void timer_disableInterrupt(uint8_t nr)
+void timer_disableInterrupt(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
     
     /* Set bit 5 of the Control Register to 0, do not modify other bits */
-    timerReg[nr]->CONTROL &= ~CTL_INTR;
+    pReg[timerNr]->CNTR[counterNr].CONTROL &= ~CTL_INTR;
 }
 
 
 /**
- * Clears the interrupt output from the specified timer's counter
+ * Clears the interrupt output from the specified timer.
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  */
-void timer_clearInterrupt(uint8_t nr)
+void timer_clearInterrupt(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
@@ -276,80 +303,83 @@ void timer_clearInterrupt(uint8_t nr)
      * Interrupt Clear Register clears the timer's interrupt output.
      * See page 3-6 of DDI0271.
      */
-    timerReg[nr]->INTCLR = 0xFFFFFFFF;
+    pReg[timerNr]->CNTR[counterNr].INTCLR = 0xFFFFFFFF;
 }
 
 
 /**
- * Sets the value of the specified timer's Load Register.
+ * Sets the value of the specified counter's Load Register.
  * 
  * When the timer runs in periodic mode and its counter reaches 0,
  * the counter is reloaded to this value.
  * 
  * For more details, see page 3-4 of DDI0271.
  * 
- * Nothing is done if 'nr' is invalid (4 or greater).
+ * Nothing is done if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  * @param value - value to be loaded int the Load Register
  */
-void timer_setLoad(uint8_t nr, uint32_t value)
+void timer_setLoad(uint8_t timerNr, uint8_t counterNr, uint32_t value)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return;
     }
     
-    timerReg[nr]->LOAD = value;
+    pReg[timerNr]->CNTR[counterNr].LOAD = value;
 }
 
 
 /**
- * Returns the value of the specified timer's Value Register, 
+ * Returns the value of the specified counter's Value Register, 
  * i.e. the value of the counter at the moment of reading.
  * 
- * Zero is returned if 'nr' is invalid (4 or greater).
+ * Zero is returned if either 'timerNr' or 'counterNr' is invalid.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  * 
  * @return value of the timer's counter at the moment of reading
  */
-uint32_t timer_getValue(uint8_t nr)
+uint32_t timer_getValue(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return 0UL;
     }
     
-    return timerReg[nr]->VALUE;
+    return pReg[timerNr]->CNTR[counterNr].VALUE;
 }
 
 
 /**
- * Address of the specified timer's Value Register. It might be suitable
+ * Address of the specified counter's Value Register. It might be suitable
  * for applications that poll this register frequently and wish to avoid 
  * the overhead due to calling timer_getValue() each time.
  * 
- * NULL is returned if 'nr' is invalid (4 or greater).
+ * NULL is returned if either 'timerNr' or 'counterNr' is invalid.
  * 
  * @note Contents at this address are read only and should not be modified.
  * 
- * @param nr - number of the timer (between 0 and 3)
+ * @param timerNr - timer number (between 0 and 1)
+ * @param counterNr - counter number of the selected timer (between 0 and 1)
  * 
  * @return read-only address of the timer's counter (i.e. the Value Register)
  */ 
-const volatile uint32_t* timer_getValueAddr(uint8_t nr)
+const volatile uint32_t* timer_getValueAddr(uint8_t timerNr, uint8_t counterNr)
 {
 
     /* sanity check: */
-    if ( nr >= N_TIMERS )
+    if ( timerNr >= NR_TIMERS || counterNr >= NR_COUNTERS )
     {
         return NULL;
     }
     
-    return (const volatile uint32_t*) &(timerReg[nr]->VALUE);
+    return (const volatile uint32_t*) &(pReg[timerNr]->CNTR[counterNr].VALUE);
 }

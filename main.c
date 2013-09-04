@@ -152,12 +152,12 @@ static void timersEnabledTest(void)
     /* Initialize all 4 timers: */
     for ( i=0; i<4; ++i )
     {
-        timer_init(i);
+        timer_init(i/2, i%2);
     }
     
-    /* Start the 2nd timer (it is running only, no interrupt is triggered): */
-    timer_setLoad(1, 5000UL);
-    timer_start(1);
+    /* Start the 2nd counter of the timer 1 (it is running only, no interrupt is triggered): */
+    timer_setLoad(0, 1, 5000UL);
+    timer_start(0, 1);
     
      /* For each available timer... */
     for ( i=0; i<4; ++i )
@@ -165,20 +165,19 @@ static void timersEnabledTest(void)
 
         /* Print the timer's number */
         uart_print(0, "Timer ");
-        strbuf[0] = '0' + i;
-        strbuf[1] = ':';
-        strbuf[2] = ' ';
-        strbuf[3] = '\0';
-        uart_print(0, strbuf);
+        uart_printChar(0, '0' + i/2);
+        uart_print(0, ", counter ");
+        uart_printChar(0, '0' + i%2);
+        uart_print(0, ": ");
 
         /* then call the appropriate timer function */
-        pstr = (0!=timer_isEnabled(i) ? "enabled" : "disabled");
+        pstr = (0!=timer_isEnabled(i/2, i%2) ? "enabled" : "disabled");
         uart_print(0, pstr);
         uart_print(0, "\r\n");
     }
     
     /* The test is completed, stop the 2nd timer */
-    timer_stop(1);
+    timer_stop(0, 1);
     
     uart_print(0, "\r\n=Timer enabled test completed=\r\n");
 }
@@ -205,7 +204,7 @@ static void timer0ISR(void)
     __tick_cntr++;
     
     /* And finally, acknowledge the interrupt, i.e. clear it in the timer */
-    timer_clearInterrupt(0);
+    timer_clearInterrupt(0, 0);
 }
 
 
@@ -237,13 +236,13 @@ static void timerVectIrqTest(void)
     pic_enableInterrupt(IRQ_TIMER0);
     
     /* Initialize the timer 0 to triggger IRQ 4 every 1000000 micro seconds, i.e. every 1 s */
-    timer_init(0);
-    timer_setLoad(0, 1000000);
-    timer_enableInterrupt(0);
+    timer_init(0, 0);
+    timer_setLoad(0, 0, 1000000);
+    timer_enableInterrupt(0, 0);
     
     /* Reset the tick counter and start the timer */
     __tick_cntr = 0;
-    timer_start(0);
+    timer_start(0, 0);
     
     
     /* just wait until IRQ4 is triggered 10 times */
@@ -251,8 +250,8 @@ static void timerVectIrqTest(void)
     
     /* Cleanup. Reset the counter, disable interrupts, stop the Timer... */
     __tick_cntr = 0;
-    timer_disableInterrupt(0);
-    timer_stop(0);
+    timer_disableInterrupt(0, 0);
+    timer_stop(0, 0);
     pic_disableInterrupt(IRQ_TIMER0);
     
     /* Disable IRQ mode */
@@ -299,7 +298,7 @@ static void rtcTest(void)
     
     /* Init all necessary peripherals */
     rtc_init();
-    timer_init(3);
+    timer_init(1, 1);
     pic_init();
     
     uart_print(0, "Expecting a RTC interrupt in 7 seconds...\r\n");
@@ -313,11 +312,11 @@ static void rtcTest(void)
     /* Start the RTC */
     rtc_start();
     /* Load the timer with an initial value */
-    timer_setLoad(3, initTimerVal);
+    timer_setLoad(1, 1, initTimerVal);
     /* Set an "alarm" at "now()" + 7 seconds:*/
     rtc_setMatch(rtc_getValue()+period);
     /* Start a timer for verification of the RTC: */
-    timer_start(3);
+    timer_start(1, 1);
     
     /* Reset the counter of "ticks" */
     __tick_cntr = 0;
@@ -326,7 +325,7 @@ static void rtcTest(void)
     while ( 0 == __tick_cntr );
     
     /* Stop the timer (and preserve its value) immediately after the interrupt */
-    timer_stop(3);
+    timer_stop(1, 1);
     
     /* Clean up, disable controllers, etc. */
     rtc_disableInterrupt();
@@ -334,7 +333,7 @@ static void rtcTest(void)
     irq_disableIrqMode();
     
     /* Finally verify that the RTC indeed triggered an IRQ after approx. 7 seconds */
-    ul2dec(strbuf, initTimerVal - timer_getValue(3) );
+    ul2dec(strbuf, initTimerVal - timer_getValue(1, 1) );
     uart_print(0, "RTC interrupt triggered after: ");
     uart_print(0, strbuf);
     uart_print(0, " micro seconds.\r\n");
@@ -389,7 +388,7 @@ static void swIntTest(void)
     uart_print(0, "\r\n=Software interrupt test:=\r\n\r\n");
     
     /* init all controllers: */
-    timer_init(nr);
+    timer_init(nr/2, nr%2);
     pic_init();
     
     /* reset the counter of "ticks" */
@@ -402,7 +401,7 @@ static void swIntTest(void)
      * To reduce overhead, obtain direct address of the timer's Value Register.
      * Note that the register should not be modified!
      */
-    pVal = timer_getValueAddr(nr);
+    pVal = timer_getValueAddr(nr/2, nr%2);
 
     /* sanity check */
     if ( NULL==pVal )
@@ -411,12 +410,12 @@ static void swIntTest(void)
     }
     
     /* Load the timer and enable interrupt handling */
-    timer_setLoad(nr, timerLd);
+    timer_setLoad(nr/2, nr%2, timerLd);
     irq_enableIrqMode();
     pic_enableInterrupt(irq);
     
     /* start the timer */
-    timer_start(nr);
+    timer_start(nr/2, nr%2);
     
     /* repeat the sequence for the specified number of ticks... */
     while ( __tick_cntr<nrTicks )
@@ -428,7 +427,7 @@ static void swIntTest(void)
     }
 
     /* When the test is complete, timer and interrupt controller can be disabled/stopped */
-    timer_stop(nr);
+    timer_stop(nr/2, nr%2);
     pic_disableInterrupt(irq);
     irq_disableIrqMode();
     
@@ -445,7 +444,7 @@ static void swIntTest(void)
 void start(void)
 {
     uart_init(0);
-     
+
     uart_print(0, "* * * T E S T   S T A R T * * *\r\n");
     
     timersEnabledTest();

@@ -52,9 +52,7 @@ limitations under the License.
  * See page 4-67 of the DUI0225D.
  */
 #define IRQ_TIMER0        4
-#define IRQ_TIMER1        4
-#define IRQ_TIMER2        5
-#define IRQ_TIMER3        5
+#define IRQ_TIMER1        5
 
 
 /*

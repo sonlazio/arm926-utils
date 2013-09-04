@@ -53,9 +53,7 @@ limitations under the License.
 
 /* Base addresses for all 4 timers (see page 4-21 of DUI0225D): */
 #define TIMER0_BASE     0x101E2000
-#define TIMER1_BASE     0x101E2020
-#define TIMER2_BASE     0x101E3000
-#define TIMER3_BASE     0x101E3020
+#define TIMER1_BASE     0x101E3000
 
 
 /* Base address of the Real time Clock (see page 4-60 of the DUI0225D): */

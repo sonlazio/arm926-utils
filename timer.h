@@ -31,24 +31,24 @@ limitations under the License.
 #include <stdint.h>
 
 
-void timer_init(uint8_t nr);
+void timer_init(uint8_t timerNr, uint8_t counterNr);
 
-void timer_start(uint8_t nr);
+void timer_start(uint8_t timerNr, uint8_t counterNr);
 
-void timer_stop(uint8_t nr);
+void timer_stop(uint8_t timerNr, uint8_t counterNr);
 
-int8_t timer_isEnabled(uint8_t nr);
+int8_t timer_isEnabled(uint8_t timerNr, uint8_t counterNr);
 
-void timer_enableInterrupt(uint8_t nr);
+void timer_enableInterrupt(uint8_t timerNr, uint8_t counterNr);
 
-void timer_disableInterrupt(uint8_t nr);
+void timer_disableInterrupt(uint8_t timerNr, uint8_t counterNr);
 
-void timer_clearInterrupt(uint8_t nr);
+void timer_clearInterrupt(uint8_t timerNr, uint8_t counterNr);
 
-void timer_setLoad(uint8_t nr, uint32_t value);
+void timer_setLoad(uint8_t timerNr, uint8_t counterNr, uint32_t value);
 
-uint32_t timer_getValue(uint8_t nr);
+uint32_t timer_getValue(uint8_t timerNr, uint8_t counterNr);
 
-const volatile uint32_t* timer_getValueAddr(uint8_t nr);
+const volatile uint32_t* timer_getValueAddr(uint8_t timerNr, uint8_t counterNr);
 
 #endif  /* _TIMER_H_*/

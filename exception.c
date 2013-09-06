@@ -28,6 +28,12 @@ limitations under the License.
 
 #include <stdint.h>
 
+/* Starting address of the memory where interrupt vectors are actually expected: */
+#define MEM_DST_START       0x00000000
+
+#define MAX_ADDRESS         UINT32_MAX
+
+
 /* Declaration of IRQ handler routine, implemented in interrupt.c */
 extern void _pic_IrqHandler(void);
 
@@ -36,7 +42,7 @@ extern void _pic_IrqHandler(void);
  * that further calls the IRQ handler routine. The routine is implemented
  * in interrupt.c. 
  */
-void __attribute__((interrupt)) irq_handler() 
+void __attribute__((interrupt)) irq_handler(void) 
 {
     _pic_IrqHandler();
 }
@@ -80,20 +86,74 @@ void __attribute__((interrupt)) fiq_handler(void)
  */
 void copy_vectors(void) 
 {
-    /* Both values are declared in vectors.s: */
+    /* Both variables are declared and allocated in vectors.s: */
     extern uint32_t vectors_start;
     extern uint32_t vectors_end;
     
-    uint32_t* vectors_src = &vectors_start;
-    uint32_t* vectors_dst = (uint32_t*) 0x00000000;
- 
     /*
-     * Vectors are copied backwards in the memory (from something positive to 0x0000000) 
-     * from their first to the last byte, this prevents a potential corruption
-     * if both memory areas overlap.
+     * Handle a very unlikely case that 'vectors_start' is located after 'vectors_end'
      */
-    while (vectors_src < &vectors_end)
+    uint32_t* const src_begin = ( &vectors_start<=&vectors_end ? &vectors_start : &vectors_end );
+    uint32_t* const src_end = ( &vectors_end>=&vectors_start ? &vectors_end : &vectors_start );
+    const uint32_t block_len = src_end - src_begin;
+    
+    uint32_t* vectors_src;
+    uint32_t* vectors_dst;
+    uint32_t* const dst_start = (uint32_t* const) MEM_DST_START;
+ 
+    
+    /* 
+     * No need to copy anything if '&vectors_start' equals 'dst_start' 
+     * This prevents potential problems if attempting to "copy" from
+     * 0x00000000 to 0x00000000.
+     */
+    if ( dst_start == src_begin )
     {
-        *vectors_dst++ = *vectors_src++;
+        return;
+    }
+    
+    /* Nothing is done if forward copy would exceed the addressable range: */
+    if ( block_len > ((uint32_t* const) MAX_ADDRESS-dst_start) )
+    {
+        return;
+    }
+
+
+    if ( dst_start < src_begin || dst_start >= src_end )
+    {
+        /*
+         * If vectors are copy backwards or if destination block starts after
+         * 'vectors_end', it is completely safe to copy the source block word by word 
+         * from begin to end. Memory corruption due to overlapping of memory areas is
+         * not possible.
+         */
+        vectors_src = src_begin;
+        vectors_dst = dst_start;
+        
+        while (vectors_src < src_end)
+        {
+            *vectors_dst++ = *vectors_src++;
+        }
+    }
+    else
+    {
+        /*
+         * If vectors are copied forward and the destination starts before the source's end,
+         * memory corruption is possible if words are copied from the source's start to the end.
+         * This is why, vectors will be copied word by word from the source's end towards
+         * its start.
+         */
+        vectors_src =  src_end - 1;
+        vectors_dst = dst_start + block_len - 1;
+        
+        /*
+         * Inside this block, 'dst_start' is always greater than 0x00000000.
+         * So 'vectors_dst' can never overflow after decrement. As such it is safer
+         * to use as a condition variable of the while loop.
+         */
+        while ( vectors_dst >= dst_start )
+        {
+            *vectors_dst-- = *vectors_src--;
+        }
     }
 }

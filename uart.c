@@ -31,6 +31,7 @@ limitations under the License.
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "bsp.h"
 
@@ -383,10 +384,10 @@ void uart_disableUart(uint8_t nr)
  * Nothing is done if 'nr' is invalid (equal or greater than 3).
  *
  * @param nr - number of the UART (between 0 and 2)
- * @param set - if nonzero, set bitmask's bit(s) to 1, if zero, clear them to 0
+ * @param set - true: bitmask's bit(s) are set to 1;  false: bits are cleared to 0
  * @param bitmask - bitmask of 1-bits that will be set or cleared
  */
-static inline void __setCrBit(uint8_t nr, int8_t set, uint32_t bitmask)
+static inline void __setCrBit(uint8_t nr, bool set, uint32_t bitmask)
 {
     uint32_t enabled;
     
@@ -435,7 +436,7 @@ static inline void __setCrBit(uint8_t nr, int8_t set, uint32_t bitmask)
  */
 void uart_enableTx(uint8_t nr)
 {
-    __setCrBit(nr, 1, CTL_TXE);
+    __setCrBit(nr, true, CTL_TXE);
 }
 
 
@@ -449,7 +450,7 @@ void uart_enableTx(uint8_t nr)
  */
 void uart_disableTx(uint8_t nr)
 {
-    __setCrBit(nr, 0, CTL_TXE);
+    __setCrBit(nr, false, CTL_TXE);
 }
 
 
@@ -463,7 +464,7 @@ void uart_disableTx(uint8_t nr)
  */
 void uart_enableRx(uint8_t nr)
 {
-    __setCrBit(nr, 1, CTL_RXE);
+    __setCrBit(nr, true, CTL_RXE);
 }
 
 
@@ -477,5 +478,5 @@ void uart_enableRx(uint8_t nr)
  */
 void uart_disableRx(uint8_t nr)
 {
-    __setCrBit(nr, 0, CTL_RXE);
+    __setCrBit(nr, false, CTL_RXE);
 }

@@ -31,8 +31,7 @@ vectors_start:
  LDR PC, irq_handler_addr               @ IRQ handler
  LDR PC, fiq_handler_addr               @ FIQ handler
 
-@ Definitions of exception handler functions, the above declared 
-@ handlers' addresses point  to:
+@ Labels with addresses to exception handler routines, referenced above:
 reset_handler_addr: .word reset_handler
 undef_handler_addr: .word undef_handler
 swi_handler_addr: .word swi_handler
@@ -48,10 +47,12 @@ vectors_end:
  * A separate stack pointer for the IRQ mode is defined,
  * the original mode (Supervisor) is restored and the IRQ mode is enabled.
  * Finally the startup function is executed.
+ *
+ * Note: 'stack_top' and 'irq_stack_top' are allocated in qemu.ld
  */
 reset_handler:
  LDR sp, =stack_top                     @ stack for the supervisor mode
- BL copy_vectors                        @ vector table is copied to the point where the code is actually loaded
+ BL copy_vectors                        @ copy exception vectors to 0x00000000
  MRS r0, cpsr                           @ copy Program Status Register (CPSR) to r0
  
  BIC r1, r0, #0x1F                      @ clear least significant 5 bits...

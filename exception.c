@@ -42,7 +42,7 @@ extern void _pic_IrqHandler(void);
  * that further calls the IRQ handler routine. The routine is implemented
  * in interrupt.c. 
  */
-void __attribute__((interrupt)) irq_handler(void) 
+void __attribute__((interrupt("IRQ"))) irq_handler(void) 
 {
     _pic_IrqHandler();
 }
@@ -57,7 +57,7 @@ void __attribute__((interrupt)) undef_handler(void)
     for( ; ; ); 
 }
 
-void __attribute__((interrupt)) swi_handler(void) 
+void __attribute__((interrupt("SWI"))) swi_handler(void) 
 { 
     for( ; ; ); 
 }
@@ -72,7 +72,7 @@ void __attribute__((interrupt)) data_abort_handler(void)
     for( ; ; ); 
 }
 
-void __attribute__((interrupt)) fiq_handler(void) 
+void __attribute__((interrupt("FIQ"))) fiq_handler(void) 
 { 
     for( ; ; ); 
 }
@@ -86,7 +86,7 @@ void __attribute__((interrupt)) fiq_handler(void)
  */
 void copy_vectors(void) 
 {
-    /* Both variables are declared and allocated in vectors.s: */
+    /* Both labels are declared and appropriately positioned in vectors.s: */
     extern uint32_t vectors_start;
     extern uint32_t vectors_end;
     
@@ -113,7 +113,7 @@ void copy_vectors(void)
     }
     
     /* Nothing is done if forward copy would exceed the addressable range: */
-    if ( block_len > ((uint32_t* const) MAX_ADDRESS-dst_start) )
+    if ( block_len > ((uint32_t* const) MAX_ADDRESS - dst_start) )
     {
         return;
     }

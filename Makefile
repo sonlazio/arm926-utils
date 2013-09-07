@@ -26,41 +26,47 @@ AR = $(TOOLCHAIN)ar
 
 CPUFLAG = -mcpu=arm926ej-s
 
-all : image.bin
+OBJS = vectors.o exception.o interrupt.o uart.o timer.o rtc.o main.o
+LINKER_SCRIPT = qemu.ld
+IMAGE = image.bin
+
+all : $(IMAGE)
 
 rebuild : clean all
 
-image.bin : image.elf
-	$(OBJCPY) -O binary image.elf image.bin
+$(IMAGE) : image.elf
+	$(OBJCPY) -O binary $< $@
 
-image.elf : vectors.o exception.o interrupt.o uart.o timer.o rtc.o main.o qemu.ld
-	$(LD) -T qemu.ld exception.o interrupt.o timer.o uart.o rtc.o main.o -o image.elf
+image.elf : $(OBJS) $(LINKER_SCRIPT)
+	$(LD) -T $(LINKER_SCRIPT) $(OBJS) -o $@
 
 interrupt.o : interrupt.c
-	$(CC) -c $(CPUFLAG) interrupt.c -o interrupt.o
+	$(CC) -c $(CPUFLAG) $< -o $@
 
 uart.o : uart.c
-	$(CC) -c $(CPUFLAG) uart.c -o uart.o
+	$(CC) -c $(CPUFLAG) $< -o $@
 
 timer.o : timer.c
-	$(CC) -c $(CPUFLAG) timer.c -o timer.o
+	$(CC) -c $(CPUFLAG) $< -o $@
 
 rtc.o : rtc.c
-	$(CC) -c $(CPUFLAG) rtc.c -o rtc.o
+	$(CC) -c $(CPUFLAG) $< -o $@
 
 main.o : main.c
-	$(CC) -c $(CPUFLAG) main.c -o main.o
+	$(CC) -c $(CPUFLAG) $< -o $@
 
 exception.o : exception.c
-	$(CC) -c $(CPUFLAG) exception.c -o exception.o
+	$(CC) -c $(CPUFLAG) $< -o $@
 
 vectors.o : vectors.s
-	$(AS) $(CPUFLAG) vectors.s -o vectors.o
+	$(AS) $(CPUFLAG) $< -o $@
 
-clean :
+clean_intermediate :
 	rm -f *.o
 	rm -f *.elf
 	rm -f *.img
+
+clean : clean_intermediate
 	rm -f *.bin
 
-.PHONY : all clean rebuild
+.PHONY : all rebuild clean clean_intermediate

@@ -27,32 +27,34 @@ AR = $(TOOLCHAIN)ar
 CPUFLAG = -mcpu=arm926ej-s
 
 OBJS = vectors.o exception.o interrupt.o uart.o timer.o rtc.o main.o
+BSP_DEP = bsp.h
 LINKER_SCRIPT = qemu.ld
+ELF_IMAGE = image.elf
 IMAGE = image.bin
 
 all : $(IMAGE)
 
 rebuild : clean all
 
-$(IMAGE) : image.elf
+$(IMAGE) : $(ELF_IMAGE)
 	$(OBJCPY) -O binary $< $@
 
-image.elf : $(OBJS) $(LINKER_SCRIPT)
+$(ELF_IMAGE) : $(OBJS) $(LINKER_SCRIPT)
 	$(LD) -T $(LINKER_SCRIPT) $(OBJS) -o $@
 
-interrupt.o : interrupt.c
+interrupt.o : interrupt.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
-uart.o : uart.c
+uart.o : uart.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
-timer.o : timer.c
+timer.o : timer.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
-rtc.o : rtc.c
+rtc.o : rtc.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
-main.o : main.c
+main.o : main.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
 exception.o : exception.c

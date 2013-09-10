@@ -191,12 +191,16 @@ void irq_enableIrqMode(void)
     /*
      * To enable IRQ mode, bit 7 of the Program Status Register (CSPR)
      * must be cleared to 0. See pp. 2-15 to 2-17 of the DDI0222 for more details.
-     * The CSPR can only be accessed using assembler.
+     * However, this function will be typically called in the User mode that does
+     * not permit modification of CSPR's bits. Hence a software interrupt will be 
+     * triggered to do this in the privileged Supervisor mode.
      */
     
-    __asm volatile("MRS r0, cpsr");       /* Read in the CPSR register. */
-    __asm volatile("BIC r0, r0, #0x80");  /* Clear bit 8, (0x80) -- Causes IRQs to be enabled. */
-    __asm volatile("MSR cpsr_c, r0");     /* Write it back to the CPSR register */
+    /* 
+     * Any non zero immediate value appended to the SWI instruction will
+     * enable the IRQ mode.
+     */
+    __asm volatile("SWI #1");
 }
 
 
@@ -208,12 +212,16 @@ void irq_disableIrqMode(void)
     /*
      * To disable IRQ mode, bit 7 of the Program Status Register (CSPR)
      * must be set t1 0. See pp. 2-15 to 2-17 of the DDI0222 for more details.
-     * The CSPR can only be accessed using assembler.
+     * However, this function will be typically called in the User mode that does
+     * not permit modification of CSPR's bits. Hence a software interrupt will be 
+     * triggered to do this in the privileged Supervisor mode.
      */
     
-    __asm volatile("MRS r0, cpsr");       /* Read in the CPSR register. */
-    __asm volatile("ORR r0, r0, #0x80");  /* Set bit 8, (0x80) -- Causes IRQs to be disabled. */
-    __asm volatile("MSR cpsr_c, r0");     /* Write it back to the CPSR register. */
+    /* 
+     * A zero immediate value appended to the SWI instruction will
+     * disable the IRQ mode.
+     */
+    __asm volatile("SWI #0");
 }
 
 

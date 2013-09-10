@@ -50,9 +50,11 @@ SECTIONS
     .bss : { *(.bss) }
     . = ALIGN(8);  /* The section size is aligned to the 8-byte boundary */
     
-    /* Finally allocate enough memory for user and IRQ mode stacks */
+    /* Finally allocate enough memory for supported operating modes' stacks */
     . = . + 0x500; /* reserve approx. 1kB for the stack memory */
     stack_top = .;
     . = . + 0x500; /* reserve approx. 1kB for the IRQ handler's stack memory */
     irq_stack_top = .;
+    . = . + 0x40; /* a small stack is essential for the Supervisor mode */
+    svc_stack_top = .;
 }

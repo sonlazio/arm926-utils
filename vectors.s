@@ -14,61 +14,84 @@
  */
 
 .text
- .code 32                      @ 32-bit ARM instruction set
+.code 32                      @ 32-bit ARM instruction set
  
- @ Both directives are visible to the linker  
- .global vectors_start
- .global vectors_end
+@ Both directives are visible to the linker  
+.global vectors_start
+.global vectors_end
  
 vectors_start:
- @ Exception vectors, relative to the base address, see page 2-26 of DDI0222 
- LDR PC, reset_handler_addr             @ Reset (and startup) vector
- LDR PC, undef_handler_addr             @ Undefined (unknown) instruction
- LDR PC, swi_handler_addr               @ Software interrupt 
- LDR PC, prefetch_abort_handler_addr    @ Prefetch abort
- LDR PC, data_abort_handler_addr        @ Data abort (system bus cannot access a peripheral)
- B .                                    @ Reserved
- LDR PC, irq_handler_addr               @ IRQ handler
- LDR PC, fiq_handler_addr               @ FIQ handler
+    @ Exception vectors, relative to the base address, see page 2-26 of DDI0222 
+    LDR PC, reset_handler_addr             @ Reset (and startup) vector
+    LDR PC, undef_handler_addr             @ Undefined (unknown) instruction
+    LDR PC, swi_handler_addr               @ Software interrupt 
+    LDR PC, prefetch_abort_handler_addr    @ Prefetch abort
+    LDR PC, data_abort_handler_addr        @ Data abort (system bus cannot access a peripheral)
+    B .                                    @ Reserved
+    LDR PC, irq_handler_addr               @ IRQ handler
+    LDR PC, fiq_handler_addr               @ FIQ handler
 
 @ Labels with addresses to exception handler routines, referenced above:
-reset_handler_addr: .word reset_handler
-undef_handler_addr: .word undef_handler
-swi_handler_addr: .word swi_handler
-prefetch_abort_handler_addr: .word prefetch_abort_handler
-data_abort_handler_addr: .word data_abort_handler
-irq_handler_addr: .word irq_handler
-fiq_handler_addr: .word fiq_handler
+reset_handler_addr: 
+    .word reset_handler
+undef_handler_addr:
+    .word undef_handler
+swi_handler_addr: 
+    .word swi_handler
+prefetch_abort_handler_addr: 
+    .word prefetch_abort_handler
+data_abort_handler_addr: 
+    .word data_abort_handler
+irq_handler_addr: 
+    .word irq_handler
+fiq_handler_addr: 
+    .word fiq_handler
  
 vectors_end:
 
 /*
- * Implementation of reset handler, execruted also at startup.
- * A separate stack pointer for the IRQ mode is defined,
- * the original mode (Supervisor) is restored and the IRQ mode is enabled.
- * Finally the startup function is executed.
+ * Implementation of the reset handler, executed also at startup.
+ * It sets stack pointers for all supported operating modes (Supervisor,
+ * IRQ and User), Disables IRQ interrupts for all modes and finally it
+ * switches into the User mode and jumps into the startup function.
  *
- * Note: 'stack_top' and 'irq_stack_top' are allocated in qemu.ld
+ * Note: 'stack_top', 'irq_stack_top' and 'svc_stack_top' are allocated in qemu.ld
  */
 reset_handler:
- LDR sp, =stack_top                     @ stack for the supervisor mode
- BL copy_vectors                        @ copy exception vectors to 0x00000000
- MRS r0, cpsr                           @ copy Program Status Register (CPSR) to r0
+    @ The handler is always entered in Supervisor mode
+    LDR sp, =svc_stack_top                 @ stack for the supervisor mode
+    BL copy_vectors                        @ copy exception vectors to 0x00000000
+    MRS r0, cpsr                           @ copy Program Status Register (CPSR) to r0
+
+    @ Disable IRQ interrupts for the Supervisor mode
+    @ This should be disabled by default, but it doesn't hurt...
+    ORR r1, r0, #80
+    MSR cpsr, r1
+
+    @ Set and switch into IRQ mode
+    BIC r1, r0, #0x1F                      @ clear least significant 5 bits...
+    ORR r1, r1, #0x12                      @ and set them to b10010 (0x12), i.e set IRQ mode
+    ORR r1, r1, #80                        @ also disable IRQ triggering (a default setting, but...)
+    MSR cpsr, r1                           @ update CPSR (program status register) for IRQ mode
  
- BIC r1, r0, #0x1F                      @ clear least significant 5 bits...
- ORR r1, r1, #0x12                      @ and set them to b10010 (0x12), i.e set IRQ mode
- MSR cpsr, r1                           @ update CPSR (program status register) for IRQ mode
+    @ When in IRQ mode, set its stack pointer
+    LDR sp, =irq_stack_top                 @ stack for the IRQ mode
  
- LDR sp, =irq_stack_top                 @ stack for the IRQ mode
+    @ Prepare and enter into User mode. This mode is configured as the last as it does
+    @ not permit (direkt) switching into other operating modes.
  
- @ It is a good idea if IRQ mode is disabled by default until all ISR vectors
- @ are configured properly, and then enabled "manually".
- ORR r0, r0, #0x80                      @ set the 8th bit (disables IRQ mode) of r0
+    BIC r1, r0, #0x1F                      @ clear loweest 5 bits
+    ORR r1, r1, #0x10                      @ and set them to the User mode
  
- MSR cpsr, r0                           @ restore the CSPR (to Supervisor mode) with IRQ mode disabled
+    @ It is a good idea if IRQ interrupts are disabled by default until all ISR vectors
+    @ are configured properly, and then enabled "manually".
+    ORR r1, r1, #0x80                      @ set the 8th bit (disables IRQ mode) of r0
  
- BL start                               @ Starting point (start() instead of main()!)
- B .                                    @ infinite loop (if start() terminates)
+    MSR cpsr, r1                           @ update the CSPR (to User mode) with IRQ mode disabled
+    LDR sp, =stack_top                     @ stack for the User Mode
+ 
+    BL start                               @ Starting point (start() instead of main()!)
+    B .                                    @ infinite loop (if start() ever returns)
  
 .end
 

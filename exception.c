@@ -18,10 +18,12 @@ limitations under the License.
 /**
  * @file
  *
- * Implementation of ARM exception handlers (except the reset handler that is 
- * implemented in vector.s).
+ * Implementation of ARM exception handlers (except the reset handler which is 
+ * implemented in vector.s). Implementation of handlers inside C functions
+ * is handy as modifiers ("__attribute__((interrupt))") take care for the
+ * necessary "boiler plate code".
  * 
- * The most important handler is the IRQ interrupt handler.
+ * The most important handlers are SWI and IRQ interrupt handlers.
  * 
  * @author Jernej Kovacic
  */
@@ -46,18 +48,49 @@ void __attribute__((interrupt("IRQ"))) irq_handler(void)
 {
     _pic_IrqHandler();
 }
- 
+
+
+/*
+ * Whenver a SWI (or its equivalent SVC) instruction is called, the CPU
+ * switches into the Supervisor mode and executes this handler. It is
+ * particularly handy when a privileged operation (e.g.modification of CSPR
+ * register's bits) is required from an unprivileged mode (e.g. User).
+ * 
+ * This implementation is very simple. It checks the immediate value,
+ * "appended" to the SWI instruction. If it equals 0, caller mode's CSPR's 
+ * I bit will be set (i.e. IRQ handler will be disabled), otherwise it will
+ * be cleared.
+ */
+void __attribute__((interrupt("SWI"))) swi_handler(void) 
+{
+    /*
+     * CSPR ans SPSR can only be accessed via assembler.
+     */
+    
+    /* Extract the immediate value (lower 24 bits of the actual instruction ): */
+    __asm volatile("LDR r0, [lr, #-4]");         /* load the actual SWI instruction */
+    __asm volatile("BIC r0, r0, #0xFF000000");   /* clear the highest 8 bits */
+    
+    __asm volatile("MRS r1, spsr");              /* load the SPSR into r1 */
+    
+    __asm volatile("TST r0, #0xFF");             /* test whether the immed. value equals 0 */
+    __asm volatile("ORREQ r1, r1, #0x80");       /* if yes, set the I bit */
+    __asm volatile("BICNE r1, r1, #0x80");       /* otherwise clear the I bit */
+    __asm volatile("MSR spsr_cxsf, r1");         /* finally update the SPSR */
+}
+
 
 
 /*
  * All other exception handlers are implemented as infinite loops. 
  */
-void __attribute__((interrupt)) undef_handler(void) 
+
+void __attribute__((interrupt("FIQ"))) fiq_handler(void) 
 { 
     for( ; ; ); 
 }
 
-void __attribute__((interrupt("SWI"))) swi_handler(void) 
+void __attribute__((interrupt)) undef_handler(void) 
 { 
     for( ; ; ); 
 }
@@ -68,11 +101,6 @@ void __attribute__((interrupt)) prefetch_abort_handler(void)
 }
 
 void __attribute__((interrupt)) data_abort_handler(void)
-{ 
-    for( ; ; ); 
-}
-
-void __attribute__((interrupt("FIQ"))) fiq_handler(void) 
 { 
     for( ; ; ); 
 }

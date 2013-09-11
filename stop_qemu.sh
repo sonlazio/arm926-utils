@@ -11,10 +11,13 @@
 
 # Obtain the PID of (presumably) the only running instance of "system-arm-qemu"...
 
-# The 11th element of the appropriate output of 'ps' must end with "qemu-system-arm":
+# Typical line of output of "ps a" looks like this:
+# 3073 pts/3    Sl+    0:04 /usr/bin/qemu-system-arm -M versatilepb -nographic -kernel image.bin
+#
+# The 1st element represents the process's PID, the 5th element represents its full path
 
-# PID=`ps aux | grep qemu-system-arm | awk '$11=="qemu-system-arm" {print $2}'`
-PID=`ps aux | grep qemu-system-arm | awk '$11~/qemu-system-arm$/ {print $2}'`
 
-# ... and kill the process with the PID
+PID=`ps a | awk '$5~/qemu-system-arm$/ {print $1}'`
+
+# Once the process's PID is known, its termination is very trivial:
 kill $PID

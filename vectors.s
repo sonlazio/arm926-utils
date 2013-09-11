@@ -14,39 +14,39 @@
  */
 
 .text
-.code 32                      @ 32-bit ARM instruction set
+.code 32                                   @ 32-bit ARM instruction set
  
-@ Both directives are visible to the linker  
+@ Both labels are visible to the linker  
 .global vectors_start
 .global vectors_end
  
 vectors_start:
     @ Exception vectors, relative to the base address, see page 2-26 of DDI0222 
-    LDR PC, reset_handler_addr             @ Reset (and startup) vector
-    LDR PC, undef_handler_addr             @ Undefined (unknown) instruction
-    LDR PC, swi_handler_addr               @ Software interrupt 
-    LDR PC, prefetch_abort_handler_addr    @ Prefetch abort
-    LDR PC, data_abort_handler_addr        @ Data abort (system bus cannot access a peripheral)
+    LDR pc, reset_handler_addr             @ Reset (and startup) vector
+    LDR pc, undef_handler_addr             @ Undefined (unknown) instruction
+    LDR pc, swi_handler_addr               @ Software interrupt 
+    LDR pc, prefetch_abort_handler_addr    @ Prefetch abort
+    LDR pc, data_abort_handler_addr        @ Data abort (system bus cannot access a peripheral)
     B .                                    @ Reserved
-    LDR PC, irq_handler_addr               @ IRQ handler
-    LDR PC, fiq_handler_addr               @ FIQ handler
+    LDR pc, irq_handler_addr               @ IRQ handler
+    LDR pc, fiq_handler_addr               @ FIQ handler
 
 @ Labels with addresses to exception handler routines, referenced above:
-reset_handler_addr: 
+reset_handler_addr:
     .word reset_handler
 undef_handler_addr:
     .word undef_handler
-swi_handler_addr: 
+swi_handler_addr:
     .word swi_handler
-prefetch_abort_handler_addr: 
+prefetch_abort_handler_addr:
     .word prefetch_abort_handler
-data_abort_handler_addr: 
+data_abort_handler_addr:
     .word data_abort_handler
-irq_handler_addr: 
+irq_handler_addr:
     .word irq_handler
-fiq_handler_addr: 
+fiq_handler_addr:
     .word fiq_handler
- 
+
 vectors_end:
 
 /*
@@ -90,8 +90,11 @@ reset_handler:
     MSR cpsr, r1                           @ update the CSPR (to User mode) with IRQ mode disabled
     LDR sp, =stack_top                     @ stack for the User Mode
  
-    BL start                               @ Starting point (start() instead of main()!)
-    B .                                    @ infinite loop (if start() ever returns)
+    @ TODO move HW init tasks etc. into a separate function and call it before 
+    @ starting main()
+    
+    BL main                                @ Starting point of the application
+    B .                                    @ infinite loop (if main() ever returns)
  
 .end
 

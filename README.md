@@ -1,11 +1,11 @@
-﻿##About
+##About
 A simple collection of drivers and test cases for the 
 [ARM Versatile Platform Baseboard](http://infocenter.arm.com/help/topic/com.arm.doc.dui0225d/DUI0225D_versatile_application_baseboard_arm926ej_s_ug.pdf), 
 based on the ARM926EJ-S CPU.
 The design is modular enough (e.g. some board specific data are separated from drivers and
 test cases) to simplify porting to other boards with similar hardware.
-The main purpose of this project is to provide necessary source code to 
-port [FreeRTOS](http://www.freertos.org/) to this board and possibly other similar 
+The project is experimental and its main purpose is to provide necessary code that would facilitate 
+porting [FreeRTOS](http://www.freertos.org/) to this board and possibly other similar 
 ARM based boards.
 
 Only drivers for Qemu supported peripherals are available at the moment, e.g. a vector 
@@ -29,11 +29,10 @@ the necessary paths, simply type:
 `. ./setenv.sh`
 
 If you wish to run the image anywhere else except in Qemu, you will probably have to 
-edit the linker script _qemu.ld_ and properly adjust hte startup address 
-(0x10000 for Qemu).
+edit the linker script _qemu.ld_ and adjust the startup address properly.
 
-To build the image with the test application, type _make_ or _make rebuild_. 
-If the build procedure is successful, the image _image.bin_ will be ready to run.
+To build the image with the test application, just run _make_ or _make rebuild_. 
+If the build process is successful, the image file _image.bin_ will be ready to boot.
 
 ##Run
 To run the target image in Qemu, enter the following command:
@@ -57,4 +56,5 @@ The source code is licenced under the Apache 2.0 license. See LICENSE.txt and
 for more details.
 
 ##Author
-The author of the application is Jernej Kovačič.
+The author of the application is Jernej Kova&#x010d;i&#x010d;.
+ 

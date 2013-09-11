@@ -445,7 +445,7 @@ static void swIntTest(void)
  * Currently it only executes a few simple test tasks that output
  * something to the serial port.
  */ 
-void start(void)
+void main(void)
 {
     uart_init(0);
 

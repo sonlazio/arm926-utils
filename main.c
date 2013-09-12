@@ -147,14 +147,18 @@ static void unsignedLongSize(void)
 static void timersEnabledTest(void)
 {
     uint8_t i;
+    uint8_t j;
     char* pstr;
     const uint8_t counters = timer_countersPerTimer();
     
     uart_print(0, "\r\n=Timer enabled test:=\r\n\r\n");
     /* Initialize all 4 timers: */
-    for ( i=0; i<BSP_NR_TIMERS*counters; ++i )
+    for ( i=0; i<BSP_NR_TIMERS; ++i )
     {
-        timer_init(i/BSP_NR_TIMERS, i%BSP_NR_TIMERS);
+        for ( j=0; j<counters; ++j )
+        {
+            timer_init(i, j);
+        }
     }
     
     /* Start the 2nd counter of the timer 1 (it is running only, no interrupt is triggered): */
@@ -162,20 +166,22 @@ static void timersEnabledTest(void)
     timer_start(0, 1);
     
      /* For each available timer... */
-    for ( i=0; i<BSP_NR_TIMERS*counters; ++i )
+    for ( i=0; i<BSP_NR_TIMERS; ++i )
     {
+        for ( j=0; j<counters; ++j )
+        {
+            /* Print the timer's number */
+            uart_print(0, "Timer ");
+            uart_printChar(0, '0' + i);
+            uart_print(0, ", counter ");
+            uart_printChar(0, '0' + j);
+            uart_print(0, ": ");
 
-        /* Print the timer's number */
-        uart_print(0, "Timer ");
-        uart_printChar(0, '0' + i/BSP_NR_TIMERS);
-        uart_print(0, ", counter ");
-        uart_printChar(0, '0' + i%BSP_NR_TIMERS);
-        uart_print(0, ": ");
-
-        /* then call the appropriate timer function */
-        pstr = (0!=timer_isEnabled(i/BSP_NR_TIMERS, i%BSP_NR_TIMERS) ? "enabled" : "disabled");
-        uart_print(0, pstr);
-        uart_print(0, "\r\n");
+            /* then call the appropriate timer function */
+            pstr = (0!=timer_isEnabled(i, j) ? "enabled" : "disabled");
+            uart_print(0, pstr);
+            uart_print(0, "\r\n");
+        }
     }
     
     /* The test is completed, stop the 2nd timer */

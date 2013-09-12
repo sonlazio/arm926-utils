@@ -26,7 +26,7 @@ AR = $(TOOLCHAIN)ar
 
 CPUFLAG = -mcpu=arm926ej-s
 
-OBJS = vectors.o exception.o interrupt.o uart.o timer.o rtc.o main.o
+OBJS = vectors.o exception.o init.o interrupt.o uart.o timer.o rtc.o main.o
 BSP_DEP = bsp.h
 LINKER_SCRIPT = qemu.ld
 ELF_IMAGE = image.elf
@@ -55,6 +55,9 @@ rtc.o : rtc.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
 main.o : main.c $(BSP_DEP)
+	$(CC) -c $(CPUFLAG) $< -o $@
+
+init.o : init.c $(BSP_DEP)
 	$(CC) -c $(CPUFLAG) $< -o $@
 
 exception.o : exception.c

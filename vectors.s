@@ -89,11 +89,10 @@ reset_handler:
  
     MSR cpsr, r1                           @ update the CSPR (to User mode) with IRQ mode disabled
     LDR sp, =stack_top                     @ stack for the User Mode
- 
-    @ TODO move HW init tasks etc. into a separate function and call it before 
-    @ starting main()
-    
-    BL main                                @ Starting point of the application
+
+    BL _init                               @ before the application is started, initialize all hardware
+
+    BL main                                @ and finally start the application
     B .                                    @ infinite loop (if main() ever returns)
  
 .end

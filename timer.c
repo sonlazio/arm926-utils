@@ -383,3 +383,12 @@ const volatile uint32_t* timer_getValueAddr(uint8_t timerNr, uint8_t counterNr)
     
     return (const volatile uint32_t*) &(pReg[timerNr]->CNTR[counterNr].VALUE);
 }
+
+
+/**
+ * @return number of counters per timer
+ */
+uint8_t timer_countersPerTimer(void)
+{
+    return NR_COUNTERS;
+}

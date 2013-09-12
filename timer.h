@@ -51,4 +51,6 @@ uint32_t timer_getValue(uint8_t timerNr, uint8_t counterNr);
 
 const volatile uint32_t* timer_getValueAddr(uint8_t timerNr, uint8_t counterNr);
 
+uint8_t timer_countersPerTimer(void);
+
 #endif  /* _TIMER_H_*/

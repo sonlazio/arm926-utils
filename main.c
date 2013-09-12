@@ -148,12 +148,13 @@ static void timersEnabledTest(void)
 {
     uint8_t i;
     char* pstr;
+    const uint8_t counters = timer_countersPerTimer();
     
     uart_print(0, "\r\n=Timer enabled test:=\r\n\r\n");
     /* Initialize all 4 timers: */
-    for ( i=0; i<4; ++i )
+    for ( i=0; i<BSP_NR_TIMERS*counters; ++i )
     {
-        timer_init(i/2, i%2);
+        timer_init(i/BSP_NR_TIMERS, i%BSP_NR_TIMERS);
     }
     
     /* Start the 2nd counter of the timer 1 (it is running only, no interrupt is triggered): */
@@ -161,18 +162,18 @@ static void timersEnabledTest(void)
     timer_start(0, 1);
     
      /* For each available timer... */
-    for ( i=0; i<4; ++i )
+    for ( i=0; i<BSP_NR_TIMERS*counters; ++i )
     {
 
         /* Print the timer's number */
         uart_print(0, "Timer ");
-        uart_printChar(0, '0' + i/2);
+        uart_printChar(0, '0' + i/BSP_NR_TIMERS);
         uart_print(0, ", counter ");
-        uart_printChar(0, '0' + i%2);
+        uart_printChar(0, '0' + i%BSP_NR_TIMERS);
         uart_print(0, ": ");
 
         /* then call the appropriate timer function */
-        pstr = (0!=timer_isEnabled(i/2, i%2) ? "enabled" : "disabled");
+        pstr = (0!=timer_isEnabled(i/BSP_NR_TIMERS, i%BSP_NR_TIMERS) ? "enabled" : "disabled");
         uart_print(0, pstr);
         uart_print(0, "\r\n");
     }

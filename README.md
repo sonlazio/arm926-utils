@@ -12,8 +12,8 @@ Only drivers for Qemu supported peripherals are available at the moment, e.g. a 
 interrupt controller, timers, UARTs and a real time clock. Additional drivers may be 
 implemented in the future.
 
-Available build scripts are tailored for execution in Qemu. If you want to run it anywhere 
-else or even on a real board, you will have to edit _qemu.ld_ appropriately.
+Provided build scripts will prepare an image, suitable to run in Qemu. In order to run it 
+anywhere else or even on a real board, _qemu.ld_ must be edited appropriately.
 
 ##Prerequisites
 * _Sourcery CodeBench Lite Edition for ARM EABI_ toolchain (now owned by Mentor Graphics), 
@@ -37,7 +37,7 @@ If the build process is successful, the image file _image.bin_ will be ready to 
 ##Run
 To run the target image in Qemu, enter the following command:
 
-`qemu-system-arm -M versatilepb -nographic -kernel image.bin`
+`qemu-system-arm -M versatilepb -nographic -m 128 -kernel image.bin`
 
 A convenience Bash script _start\_qemu.sh_ is provided. If necessary, you may 
 edit it and adjust paths to Qemu and/or target image.

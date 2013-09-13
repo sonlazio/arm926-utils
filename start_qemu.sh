@@ -23,4 +23,4 @@
 QEMUBIN=~/qemu/bin/qemu-system-arm
 IMAGE_FILE=image.bin
 
-$QEMUBIN -M versatilepb -nographic -kernel $IMAGE_FILE
+$QEMUBIN -M versatilepb -nographic -m 128 -kernel $IMAGE_FILE

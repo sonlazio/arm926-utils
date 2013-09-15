@@ -1,12 +1,22 @@
 #!/bin/bash
 #
-# Run an instance of "qemu-system-arm", emulating an ARM Versatile Application Baseboard with
+# Usage: start_qemu.sh [image_file]
+#
+# Runs an instance of "qemu-system-arm", emulating an ARM Versatile Application Baseboard with
 # ARM926EJ-S. Qemu is run in the "nographics mode", i.e. its display will not open and the
 # board's UART0 serial port will be "connected" directly to the running shell's standard output
 # and/or input.
 #
-# TODO: Currently the firmware's filename is hardcoded as "image.bin" (as built by "make all").
-# It would be a nice idea if it could also be passed as a parameter to this script.
+# If no command line argument is provided, "image.bin" (as built by Makefile) is executed as
+# a firmware image file.
+
+# Default firmware image:
+IMAGE_FILE=image.bin
+
+# Assign the first argument to IMAGE_FILE if at least one CLI argument is provided:
+if [ $# -ge 1 ]; then
+    IMAGE_FILE=$1;
+fi
 
 
 # NOTE:
@@ -21,6 +31,5 @@
 
 #QEMUBIN=qemu-system-arm
 QEMUBIN=~/qemu/bin/qemu-system-arm
-IMAGE_FILE=image.bin
 
 $QEMUBIN -M versatilepb -nographic -m 128 -kernel $IMAGE_FILE

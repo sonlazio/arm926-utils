@@ -23,6 +23,9 @@ limitations under the License.
  *
  * This script is tailored for startup in Qemu.
  *
+ * To verify whether objects (symbols) have been placed to expected locations, run
+ * 'nm' ('arm-none-eabi-nm') on the resulting ELF image.
+ *
  * Based on these articles:
  * http://balau82.wordpress.com/2012/04/15/arm926-interrupts-in-qemu/
  * http://www.embedded.com/design/mcus-processors-and-socs/4026080/Building-Bare-Metal-ARM-Systems-with-GNU-Part-3
@@ -39,7 +42,7 @@ ENTRY(vectors_start)
 SECTIONS
 {
     /*
-     * Linker will populate all sections after the __ld_Init_Addr, so with an exception of 
+     * Linker will place all sections after the __ld_Init_Addr, so with an exception of 
      * a very small region for exception vectors, the first 64 kB would remain unused. This 
      * is a convenient region to be allocated for various operating modes' stacks. The region 
      * is large enough to allow very generous stack sizes, much larger than necessary for the 

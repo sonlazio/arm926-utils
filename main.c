@@ -125,21 +125,6 @@ static void ul2dec(char* buf, uint32_t val)
 }
 
 
-#if 0
-/*
- * At the very early stage I was curious about integer sizes.
- * Anyway, this might still be useful, hence I have preserved the function.
- */
-static void unsignedLongSize(void)
-{
-    strbuf[0] = '0' + sizeof(unsigned long);
-    strbuf[1] = '\0';
-    uart_print(0, strbuf);
-    uart_print(0, "\r\n");
-}
-#endif
-
-
 /*
  * Checks control registers of all timers and display
  * whether they are enabled
